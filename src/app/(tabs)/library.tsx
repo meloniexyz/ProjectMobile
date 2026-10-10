@@ -55,7 +55,7 @@ export default function Library() {
         </Txt>
         <IconButton name="add" size={28} label="New playlist" onPress={newPlaylist} />
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 8, padding: ui.pad, paddingBottom: 8 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }} contentContainerStyle={{ gap: 8, padding: ui.pad, paddingBottom: 8 }}>
         <Chip label="All" active={filter === 'all'} onPress={() => setFilter('all')} />
         <Chip label="Playlists" active={filter === 'playlists'} onPress={() => setFilter('playlists')} />
         {connected.map((s) => (

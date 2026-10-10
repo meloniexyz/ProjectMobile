@@ -107,7 +107,7 @@ export default function Search() {
         />
         {text ? <IconButton name="close-circle" size={20} color={c.bg} label="Clear" onPress={() => setText('')} /> : null}
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 8, padding: ui.pad, paddingBottom: 6 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }} contentContainerStyle={{ gap: 8, padding: ui.pad, paddingBottom: 6 }}>
         {sources.map((s) => (
           <Chip key={s} label={SOURCES[s].short} color={SOURCES[s].color} active={source === s} onPress={() => setSource(s)} />
         ))}
