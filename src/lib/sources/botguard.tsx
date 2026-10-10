@@ -58,6 +58,22 @@ const pending = new Map<number, Pending>()
 let readyResolve: (() => void) | null = null
 let ready: Promise<void> = new Promise((r) => (readyResolve = r))
 let mounted = false
+/** asks the host to reload the page (set by BotGuardHost) */
+let reloadPage: (() => void) | null = null
+let reloads = 0
+
+/** Waits for the page; if it never finishes loading, reloads it once and waits again. */
+async function pageReady() {
+  try {
+    await withTimeout(ready, 30_000, 'YouTube helper page did not load')
+  } catch (err) {
+    if (reloads > 2 || !reloadPage) throw err
+    reloads++
+    resetReady()
+    reloadPage()
+    await withTimeout(ready, 30_000, 'YouTube helper page did not load')
+  }
+}
 
 function resetReady() {
   ready = new Promise((r) => (readyResolve = r))
@@ -66,7 +82,7 @@ function resetReady() {
 /** Evaluates an expression (may be a promise) in the page and returns its JSON-able result. */
 export async function runInPage<T = unknown>(expression: string, timeoutMs = 30_000): Promise<T> {
   if (!mounted) throw new Error('YouTube helper page is not running')
-  await withTimeout(ready, 20_000, 'YouTube helper page did not load')
+  await pageReady()
   const id = ++seq
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -82,7 +98,7 @@ export async function runInPage<T = unknown>(expression: string, timeoutMs = 30_
 
 /** Runs a script in the page without waiting for a result (used for BotGuard's large interpreter). */
 async function loadScript(code: string) {
-  await withTimeout(ready, 20_000, 'YouTube helper page did not load')
+  await pageReady()
   view?.injectJavaScript(`${code}\n;true;`)
 }
 
@@ -127,8 +143,10 @@ export function BotGuardHost() {
 
   useEffect(() => {
     mounted = true
+    reloadPage = () => setKey((k) => k + 1)
     return () => {
       mounted = false
+      reloadPage = null
     }
   }, [])
 

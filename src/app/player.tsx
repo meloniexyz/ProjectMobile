@@ -8,13 +8,12 @@ import { Slider } from '../components/Slider'
 import { Artwork, Icon, IconButton, Txt } from '../components/ui'
 import { cycleRepeat, next, prev, seek, sourceLabel, toggle, toggleShuffle, usePlayer } from '../lib/player'
 import { useSettings } from '../lib/settings'
+import { useGoBack } from '../lib/nav'
 import { useColors, ui } from '../lib/theme'
 import { openSaveSheet, openTrackSheet } from '../lib/ui'
 
-/** The player is a full-screen modal: dismiss it (back as a fallback). */
-const closePlayer = () => (router.canDismiss() ? router.dismiss() : router.canGoBack() ? router.back() : router.replace('/'))
-
 export default function PlayerScreen() {
+  const closePlayer = useGoBack()
   const c = useColors()
   const insets = useSafeAreaInsets()
   const { width } = useWindowDimensions()

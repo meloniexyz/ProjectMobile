@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons'
 import { Image } from 'expo-image'
-import { router } from 'expo-router'
+import { useGoBack } from '../lib/nav'
 import type { ComponentProps, ReactNode } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -171,10 +171,11 @@ export function Chip({ label, active, onPress, color }: { label: string; active?
 /** Screen header with a back button (for pushed screens). */
 export function Header({ title, right, back = true }: { title?: string; right?: ReactNode; back?: boolean }) {
   const c = useColors()
+  const goBack = useGoBack()
   const insets = useSafeAreaInsets()
   return (
     <View style={{ paddingTop: insets.top + 4, paddingHorizontal: 8, paddingBottom: 6, flexDirection: 'row', alignItems: 'center', backgroundColor: c.bg }}>
-      {back ? <IconButton name="chevron-back" size={26} label="Back" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} /> : <View style={{ width: 8 }} />}
+      {back ? <IconButton name="chevron-back" size={26} label="Back" onPress={goBack} /> : <View style={{ width: 8 }} />}
       <Txt size={17} weight="700" lines={1} style={{ flex: 1, marginLeft: 4 }}>
         {title ?? ''}
       </Txt>

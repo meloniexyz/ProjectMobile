@@ -53,11 +53,14 @@ jobs:
           let cid
           for (const s of scripts) { const m = (await (await fetch(s)).text()).match(new RegExp('client_id[ ]*[:=][ ]*"([a-zA-Z0-9]{32})"')); if (m) { cid = m[1]; break } }
           const get = async (u, p = {}) => { const r = await fetch(`${u}${u.includes('?') ? '&' : '?'}${new URLSearchParams({ client_id: cid, ...p })}`, { headers: { 'User-Agent': UA } }); return { status: r.status, body: r.ok ? await r.json() : null } }
-          for (const q of ['alan walker faded', 'lofi chill beat']) {
+          for (const q of ['daft punk one more time', 'lofi chill beat']) {
             const s = await get('https://api-v2.soundcloud.com/search/tracks', { q, limit: '8' })
             for (const t of (s.body?.collection ?? []).slice(0, 3)) {
-              const tr = t.media?.transcodings?.find((x) => x.preset?.startsWith('aac') && x.format.protocol === 'hls') ?? t.media?.transcodings?.[0]
-              const st = tr ? await get(tr.url, t.track_authorization ? { track_authorization: t.track_authorization } : {}) : { status: 'none' }
+              const auth = t.track_authorization ? { track_authorization: t.track_authorization } : {}
+              const res = []
+              for (const tr of t.media?.transcodings ?? []) res.push(`${tr.preset}/${tr.format.protocol}:${(await get(tr.url, auth)).status}`)
+              const tr = { preset: res.join(' ') }
+              const st = { status: '' }
               const one = await get(`https://api-v2.soundcloud.com/tracks/${t.id}`)
               console.log('SC', q, '|', t.title, '| policy', t.policy, '| tracks/id', one.status, '| stream', tr?.preset, st.status)
             }
