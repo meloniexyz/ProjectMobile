@@ -43,7 +43,7 @@ jobs:
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build CODE_SIGNING_ALLOWED=NO COMPILER_INDEX_STORE_ENABLE=NO \
             build 2>&1 | tee xcodebuild.log | grep -E "error:|warning: .*ProjectMAudio|BUILD (SUCCEEDED|FAILED)|\*\* " || true
-          test -d build/Build/Products/Release-iphonesimulator/ProjectM.app
+          grep -q "BUILD SUCCEEDED" xcodebuild.log && test -f build/Build/Products/Release-iphonesimulator/ProjectM.app/main.jsbundle
       - name: Show build errors
         if: failure()
         run: grep -E "error:" -A3 xcodebuild.log | head -150 || true
@@ -108,7 +108,7 @@ jobs:
             -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" COMPILER_INDEX_STORE_ENABLE=NO \
             build 2>&1 | tee xcodebuild.log | grep -E "error:|BUILD (SUCCEEDED|FAILED)|\*\* " || true
-          test -d build/Build/Products/Release-iphoneos/ProjectM.app
+          grep -q "BUILD SUCCEEDED" xcodebuild.log && test -f build/Build/Products/Release-iphoneos/ProjectM.app/main.jsbundle
       - name: Package .ipa
         run: |
           VERSION=$(node -p "require('./app.json').expo.version")
