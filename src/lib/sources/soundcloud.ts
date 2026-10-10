@@ -120,7 +120,7 @@ class SoundCloud {
       await this.getClientId(true)
       return this.api(path, params, false)
     }
-    if (!res.ok) throw new Error(`SoundCloud returned ${res.status}`)
+    if (!res.ok) throw new Error(`SoundCloud returned ${res.status} (${path.replace(API, '').split('?')[0].slice(0, 80)})`)
     return res.json() as Promise<T>
   }
 

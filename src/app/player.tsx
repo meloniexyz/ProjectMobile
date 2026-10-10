@@ -11,6 +11,9 @@ import { useSettings } from '../lib/settings'
 import { useColors, ui } from '../lib/theme'
 import { openSaveSheet, openTrackSheet } from '../lib/ui'
 
+/** The player is a full-screen modal: dismiss it (back as a fallback). */
+const closePlayer = () => (router.canDismiss() ? router.dismiss() : router.canGoBack() ? router.back() : router.replace('/'))
+
 export default function PlayerScreen() {
   const c = useColors()
   const insets = useSafeAreaInsets()
@@ -32,7 +35,7 @@ export default function PlayerScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: c.bg, paddingTop: insets.top, alignItems: 'center', justifyContent: 'center' }}>
         <Txt tone="text2">Nothing playing</Txt>
-        <IconButton name="chevron-down" label="Close player" onPress={() => router.back()} />
+        <IconButton name="chevron-down" label="Close player" onPress={closePlayer} />
       </View>
     )
   }
@@ -43,7 +46,7 @@ export default function PlayerScreen() {
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 4, paddingBottom: insets.bottom + 40, gap: 18 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8 }}>
-          <IconButton name="chevron-down" size={28} label="Close player" onPress={() => router.back()} />
+          <IconButton name="chevron-down" size={28} label="Close player" onPress={closePlayer} />
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Txt tone="text2" size={11} weight="700">
               PLAYING FROM
@@ -65,7 +68,7 @@ export default function PlayerScreen() {
               {track.title}
             </Txt>
             <Pressable onPress={() => {
-              router.back()
+              closePlayer()
               router.push({ pathname: '/search', params: { q: track.artist.split(',')[0] } })
             }}>
               <Txt tone="text2" size={16} lines={1}>

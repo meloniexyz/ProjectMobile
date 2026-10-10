@@ -147,7 +147,7 @@ async function runAll(report: (r: Result) => void) {
   }
 
   await run('Spotify song → YouTube/SoundCloud match', async () => {
-    const fake: Track = { uid: 'spotify:diag', source: 'spotify', id: 'diag', title: 'Blinding Lights', artist: 'The Weeknd', album: 'After Hours', duration: 200 }
+    const fake: Track = { uid: 'spotify:diag', source: 'spotify', id: 'diag', title: 'One More Time', artist: 'Daft Punk', album: 'Discovery', duration: 320 }
     const r = await resolvePlan(fake, 'mid')
     return `${r.via?.source}: ${r.via?.title} · ${r.plan.quality}`
   })

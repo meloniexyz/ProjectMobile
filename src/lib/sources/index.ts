@@ -64,17 +64,28 @@ export async function resolvePlan(track: Track, quality: Quality): Promise<Resol
   }
 
   const target = { title: track.title, artist: track.artist, duration: track.duration }
+  const why: string[] = []
   const candidates = await Promise.all(
     (['youtube', 'soundcloud'] as const).map(async (id) => {
       const src = id === 'youtube' ? youtube : soundcloud
-      const m = await src.matchScored(target).catch(() => null)
-      if (!m) return null
-      const plan = await src.plan(m.track.id, quality).catch(() => null)
+      const name = SOURCES[id].short
+      const m = await src.matchScored(target).catch((e: Error) => {
+        why.push(`${name}: ${e.message}`)
+        return null
+      })
+      if (!m) {
+        if (!why.some((w) => w.startsWith(name))) why.push(`${name}: no matching recording`)
+        return null
+      }
+      const plan = await src.plan(m.track.id, quality).catch((e: Error) => {
+        why.push(`${name}: ${e.message}`)
+        return null
+      })
       return plan ? { id, track: m.track, plan, score: m.score } : null
     }),
   )
   const found = candidates.filter((c): c is NonNullable<typeof c> => c !== null)
-  if (!found.length) throw new Error('No copy of this Spotify song was found on YouTube Music or SoundCloud')
+  if (!found.length) throw new Error(`No playable copy of this Spotify song on YouTube Music or SoundCloud (${why.join('; ')})`)
   found.sort((a, b) => {
     const q = quality === 'best' ? effective(b.plan) - effective(a.plan) : effective(a.plan) - effective(b.plan)
     return Math.abs(q) > Math.max(effective(a.plan), effective(b.plan)) * 0.08 ? q : b.score - a.score
