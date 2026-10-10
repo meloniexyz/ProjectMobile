@@ -58,17 +58,41 @@ jobs:
         run: |
           curl -fsSL "https://get.maestro.mobile.dev" | bash
           echo "$HOME/.maestro/bin" >> $GITHUB_PATH
-      - name: Run end-to-end test
+      - name: Launch + in-app diagnostics
         run: |
+          mkdir -p e2e-out
           xcrun simctl spawn "$UDID" log stream --level debug --style compact --predicate 'process == "ProjectM"' > sim.log 2>&1 &
-          LOGPID=$!
-          maestro --device "$UDID" test e2e/smoke.yaml --test-output-dir e2e-out || echo "E2E_FAILED=1" >> $GITHUB_ENV
-          sleep 2
-          kill $LOGPID || true
+          echo "LOGPID=$!" >> $GITHUB_ENV
+          xcrun simctl launch "$UDID" com.projectm.app
+          sleep 25
+          xcrun simctl io "$UDID" screenshot e2e-out/00-launch.png
+          xcrun simctl openurl "$UDID" "projectm://settings/diagnostics?run=1"
           DATA=$(xcrun simctl get_app_container "$UDID" com.projectm.app data)
-          cp "$DATA/Documents/.projectm/diagnostics.json" e2e-out/ 2>/dev/null || true
+          for i in $(seq 1 72); do
+            [ -f "$DATA/Documents/.projectm/diagnostics.json" ] && break
+            sleep 5
+          done
+          xcrun simctl io "$UDID" screenshot e2e-out/01-diagnostics.png
+          if [ -f "$DATA/Documents/.projectm/diagnostics.json" ]; then
+            cp "$DATA/Documents/.projectm/diagnostics.json" e2e-out/
+            cat e2e-out/diagnostics.json
+          else
+            echo "DIAG_MISSING=1" >> $GITHUB_ENV
+            echo "diagnostics did not finish"
+          fi
+      - name: UI test (Maestro)
+        env:
+          MAESTRO_DRIVER_STARTUP_TIMEOUT: '300000'
+        run: |
+          maestro --device "$UDID" test e2e/smoke.yaml --test-output-dir e2e-out \
+            || (sleep 10 && maestro --device "$UDID" test e2e/smoke.yaml --test-output-dir e2e-out) \
+            || echo "E2E_FAILED=1" >> $GITHUB_ENV
+      - name: Collect logs
+        if: always()
+        run: |
+          kill $LOGPID 2>/dev/null || true
           grep -E "\[diag\]" sim.log | tail -40 || true
-          grep -iE "error|exception|\[diag\]" sim.log | grep -viE "nw_|networkd|CFNetwork|boringssl" | tail -80 > sim-errors.log || true
+          grep -iE "error|exception|\[diag\]|javascript" sim.log | grep -viE "nw_|networkd|CFNetwork|boringssl" | tail -120 > sim-errors.log || true
       - uses: actions/upload-artifact@v5
         if: always()
         with:
@@ -79,9 +103,13 @@ jobs:
             sim-errors.log
             xcodebuild.log
           retention-days: 7
-      - name: Fail if the end-to-end test failed
-        if: env.E2E_FAILED == '1'
-        run: exit 1
+      - name: Fail if a test failed
+        if: env.E2E_FAILED == '1' || env.DIAG_MISSING == '1'
+        run: |
+          echo "E2E_FAILED=$E2E_FAILED DIAG_MISSING=$DIAG_MISSING"
+          exit 1
+      - name: Fail if diagnostics found problems
+        run: node -e "const d=require('./e2e-out/diagnostics.json'); console.log(d.passed+'/'+d.total); process.exit(d.passed===d.total?0:1)"
 
   ipa:
     name: Build .ipa for iPhone
