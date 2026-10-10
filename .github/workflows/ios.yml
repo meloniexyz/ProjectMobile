@@ -49,9 +49,9 @@ jobs:
           cat > sc-net.mjs <<'JS'
           const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'
           const html = await (await fetch('https://soundcloud.com/', { headers: { 'User-Agent': UA } })).text()
-          const scripts = [...html.matchAll(/<script[^>]+src="(https://a-v2.sndcdn.com/assets/[^"]+.js)"/g)].map((m) => m[1]).reverse()
+          const scripts = [...html.matchAll(new RegExp('<script[^>]+src="(https://a-v2[.]sndcdn[.]com/assets/[^"]+[.]js)"', 'g'))].map((m) => m[1]).reverse()
           let cid
-          for (const s of scripts) { const m = (await (await fetch(s)).text()).match(/client_ids*[:=]s*"([a-zA-Z0-9]{32})"/); if (m) { cid = m[1]; break } }
+          for (const s of scripts) { const m = (await (await fetch(s)).text()).match(new RegExp('client_id[ ]*[:=][ ]*"([a-zA-Z0-9]{32})"')); if (m) { cid = m[1]; break } }
           const get = async (u, p = {}) => { const r = await fetch(`${u}${u.includes('?') ? '&' : '?'}${new URLSearchParams({ client_id: cid, ...p })}`, { headers: { 'User-Agent': UA } }); return { status: r.status, body: r.ok ? await r.json() : null } }
           for (const q of ['alan walker faded', 'lofi chill beat']) {
             const s = await get('https://api-v2.soundcloud.com/search/tracks', { q, limit: '8' })
