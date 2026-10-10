@@ -35,17 +35,31 @@ appId: com.projectm.app
 - takeScreenshot: 05-player-lyrics
 - tapOn:
     id: "player-toggle"
-- openLink: "projectm://settings/diagnostics?run=1"
-- extendedWaitUntil:
-    visible: "Done: .*"
-    timeout: 300000
-- takeScreenshot: 06-diagnostics
-- scroll
-- takeScreenshot: 07-diagnostics-more
-- openLink: "projectm://settings"
+- tapOn:
+    id: "Close player"
 - waitForAnimationToEnd
-- takeScreenshot: 08-settings
+- tapOn:
+    id: "tab-index"
+- tapOn:
+    id: "Settings"
+- waitForAnimationToEnd
+- takeScreenshot: 06-settings
 - tapOn:
     id: "settings-quality"
 - waitForAnimationToEnd
-- takeScreenshot: 09-quality
+- takeScreenshot: 07-quality
+- tapOn:
+    id: "Back"
+- scrollUntilVisible:
+    element:
+      id: "settings-diagnostics"
+- tapOn:
+    id: "settings-diagnostics"
+- tapOn:
+    id: "Run"
+- extendedWaitUntil:
+    visible: "Done: .*"
+    timeout: 300000
+- takeScreenshot: 08-diagnostics
+- scroll
+- takeScreenshot: 09-diagnostics-more

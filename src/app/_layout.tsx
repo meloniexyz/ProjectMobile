@@ -1,5 +1,6 @@
 import '../lib/polyfills'
-import { DarkTheme, Stack, ThemeProvider } from 'expo-router'
+import { File } from 'expo-file-system'
+import { DarkTheme, router, Stack, ThemeProvider } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 import { useEffect, useMemo } from 'react'
@@ -8,6 +9,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { SaveSheet, Toasts, TrackSheet } from '../components/Overlays'
 import { boot } from '../lib/boot'
 import { BotGuardHost } from '../lib/sources/botguard'
+import { dataDir } from '../lib/storage'
 import { useColors } from '../lib/theme'
 
 SplashScreen.preventAutoHideAsync().catch(() => {})
@@ -21,6 +23,12 @@ export default function RootLayout() {
   )
   useEffect(() => {
     SplashScreen.hideAsync().catch(() => {})
+    // automated test hook: the CI drops this file into the app's data folder before launch
+    const trigger = new File(dataDir, 'run-diagnostics')
+    if (trigger.exists) {
+      trigger.delete()
+      setTimeout(() => router.push({ pathname: '/settings/diagnostics', params: { run: '1' } }), 1500)
+    }
   }, [])
   return (
     <SafeAreaProvider>
