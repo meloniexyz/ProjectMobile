@@ -1,5 +1,5 @@
 import type { AccountStatus, RemotePlaylist, SoundCloudProfile, Track } from '../../core/types'
-import { bestMatch, scoredMatch, type MatchTarget } from '../../core/match'
+import { bestMatch, scoredMatch, scoredMatches, type MatchTarget } from '../../core/match'
 import { JsonFile } from '../storage'
 import type { Quality } from '../settings'
 import type { StreamPlan } from './types'
@@ -269,6 +269,11 @@ class SoundCloud {
 
   async matchScored(t: MatchTarget) {
     return scoredMatch(t, await this.search(`${t.artist.split(',')[0].trim()} ${t.title}`, 15))
+  }
+
+  /** All acceptable copies, best first. */
+  async matches(t: MatchTarget) {
+    return scoredMatches(t, await this.search(`${t.artist.split(',')[0].trim()} ${t.title}`, 15))
   }
 
   /** The track with its streams: from what we already have, else /tracks/{id}, else /tracks?ids= (some regions 404 the first). */

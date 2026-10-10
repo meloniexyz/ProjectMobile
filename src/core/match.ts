@@ -39,7 +39,12 @@ const versionWords = (s: string) => new Set((s.toLowerCase().match(VERSION) ?? [
 
 /** Like bestMatch, with the match score (higher = closer title/artist/length). */
 export function scoredMatch(t: MatchTarget, candidates: Track[]): { track: Track; score: number } | null {
-  let best: { track: Track; score: number } | null = null
+  return scoredMatches(t, candidates)[0] ?? null
+}
+
+/** Every acceptable match, best first. */
+export function scoredMatches(t: MatchTarget, candidates: Track[]): { track: Track; score: number }[] {
+  const out: { track: Track; score: number }[] = []
   const wanted = versionWords(t.title)
   for (const c of candidates) {
     const dur = t.duration && c.duration ? Math.abs(t.duration - c.duration) : 0
@@ -51,7 +56,7 @@ export function scoredMatch(t: MatchTarget, candidates: Track[]): { track: Track
     const artist = Math.max(overlap(t.artist, c.artist), overlap(t.artist, c.title))
     if (artist === 0) continue // same title by someone else is a different song
     const score = title * 2 + artist - dur / 10
-    if (!best || score > best.score) best = { track: c, score }
+    if (score > 1) out.push({ track: c, score })
   }
-  return best && best.score > 1 ? best : null
+  return out.sort((a, b) => b.score - a.score)
 }

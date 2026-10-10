@@ -1,7 +1,7 @@
 import { ClientType, Innertube, Log, Platform, type OAuth2Tokens } from 'youtubei.js'
 import { File } from 'expo-file-system'
 import type { AccountStatus, RemotePlaylist, Track } from '../../core/types'
-import { bestMatch, scoredMatch, type MatchTarget } from '../../core/match'
+import { bestMatch, scoredMatch, scoredMatches, type MatchTarget } from '../../core/match'
 import { JsonFile, miscCacheDir, secrets } from '../storage'
 import type { Quality } from '../settings'
 import { mintSessionToken, runInPage } from './botguard'
@@ -235,6 +235,11 @@ class YouTube {
 
   async matchScored(t: MatchTarget) {
     return scoredMatch(t, await this.search(`${t.artist.split(',')[0].trim()} ${t.title}`, 10))
+  }
+
+  /** All acceptable copies, best first. */
+  async matches(t: MatchTarget) {
+    return scoredMatches(t, await this.search(`${t.artist.split(',')[0].trim()} ${t.title}`, 10))
   }
 
   // ---------- streaming ----------

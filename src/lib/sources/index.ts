@@ -69,19 +69,24 @@ export async function resolvePlan(track: Track, quality: Quality): Promise<Resol
     (['youtube', 'soundcloud'] as const).map(async (id) => {
       const src = id === 'youtube' ? youtube : soundcloud
       const name = SOURCES[id].short
-      const m = await src.matchScored(target).catch((e: Error) => {
+      const list = await src.matches(target).catch((e: Error) => {
         why.push(`${name}: ${e.message}`)
         return null
       })
-      if (!m) {
-        if (!why.some((w) => w.startsWith(name))) why.push(`${name}: no matching recording`)
+      if (!list) return null
+      if (!list.length) {
+        why.push(`${name}: no matching recording`)
         return null
       }
-      const plan = await src.plan(m.track.id, quality).catch((e: Error) => {
-        why.push(`${name}: ${e.message}`)
-        return null
-      })
-      return plan ? { id, track: m.track, plan, score: m.score } : null
+      // the closest copy may not be streamable (e.g. label uploads that only SoundCloud's app can play)
+      for (const m of list.slice(0, 3)) {
+        const plan = await src.plan(m.track.id, quality).catch((e: Error) => {
+          why.push(`${name}: ${e.message}`)
+          return null
+        })
+        if (plan) return { id, track: m.track, plan, score: m.score }
+      }
+      return null
     }),
   )
   const found = candidates.filter((c): c is NonNullable<typeof c> => c !== null)

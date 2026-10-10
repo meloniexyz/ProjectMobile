@@ -43,19 +43,20 @@ export default function PlayerScreen() {
   const shown = preview ?? position
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 4, paddingBottom: insets.bottom + 40, gap: 18 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8 }}>
-          <IconButton name="chevron-down" size={28} label="Close player" onPress={closePlayer} />
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Txt tone="text2" size={11} weight="700">
-              PLAYING FROM
-            </Txt>
-            <Txt size={13} weight="700" lines={1}>
-              {sourceLabel(track, via)}
-            </Txt>
-          </View>
-          <IconButton name="ellipsis-horizontal" label="More" onPress={() => openTrackSheet(track)} />
+      {/* top bar stays put while the lyrics scroll */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingTop: insets.top + 4, paddingBottom: 6, backgroundColor: c.bg }}>
+        <IconButton name="chevron-down" size={28} label="Close player" onPress={closePlayer} />
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Txt tone="text2" size={11} weight="700">
+            PLAYING FROM
+          </Txt>
+          <Txt size={13} weight="700" lines={1}>
+            {sourceLabel(track, via)}
+          </Txt>
         </View>
+        <IconButton name="ellipsis-horizontal" label="More" onPress={() => openTrackSheet(track)} />
+      </View>
+      <ScrollView contentContainerStyle={{ paddingTop: 8, paddingBottom: insets.bottom + 40, gap: 18 }}>
 
         <View style={{ alignItems: 'center' }}>
           <Artwork src={track.artwork} size={art} radius={8} />
