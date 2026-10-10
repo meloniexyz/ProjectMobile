@@ -234,7 +234,14 @@ class SoundCloud {
       .map((t) => this.toTrack(t))
   }
 
+  /** stream details that came with search / likes / playlists, so playing needs no extra lookup */
+  private known = new Map<string, ScTrack>()
+
   private toTrack(t: ScTrack): Track {
+    if (t.media?.transcodings?.length) {
+      if (this.known.size > 3000) this.known.clear()
+      this.known.set(String(t.id), t)
+    }
     const art = t.artwork_url || t.user?.avatar_url
     return {
       uid: `soundcloud:${t.id}`,
@@ -264,13 +271,33 @@ class SoundCloud {
     return scoredMatch(t, await this.search(`${t.artist.split(',')[0].trim()} ${t.title}`, 15))
   }
 
+  /** The track with its streams: from what we already have, else /tracks/{id}, else /tracks?ids= (some regions 404 the first). */
+  private async trackDetails(id: string): Promise<ScTrack> {
+    const have = this.known.get(id)
+    if (have?.media?.transcodings?.length) return have
+    try {
+      return await this.api<ScTrack>(`/tracks/${id}`)
+    } catch (err) {
+      const list = await this.api<ScTrack[]>('/tracks', { ids: id }).catch(() => [])
+      if (list[0]) return list[0]
+      throw err
+    }
+  }
+
   async plan(id: string, quality: Quality): Promise<StreamPlan> {
-    const track = await this.api<ScTrack>(`/tracks/${id}`)
+    const track = await this.trackDetails(id)
     const pick = pickTranscoding(track.media?.transcodings ?? [], quality)
     if (!pick) throw new Error('SoundCloud has no iPhone-playable stream for this track')
     const params: Record<string, string> = {}
     if (track.track_authorization) params.track_authorization = track.track_authorization
-    const { url } = await this.api<{ url: string }>(pick.url, params)
+    let url: string
+    try {
+      url = (await this.api<{ url: string }>(pick.url, params)).url
+    } catch (err) {
+      if (!this.known.has(id)) throw err
+      this.known.delete(id)
+      return this.plan(id, quality)
+    }
     const isAac = pick.preset?.startsWith('aac')
     const kbps = kbpsOf(pick)
     return {

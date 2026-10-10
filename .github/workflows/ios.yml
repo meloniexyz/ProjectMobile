@@ -32,6 +32,20 @@ jobs:
       - run: npm ci
       - name: Typecheck
         run: npx tsc --noEmit
+      - name: Can this network reach YouTube? (plain Node, no app)
+        continue-on-error: true
+        run: |
+          cat > yt-net.mjs <<'JS'
+          import { Innertube, UniversalCache } from 'youtubei.js'
+          const yt = await Innertube.create({ retrieve_player: false, generate_session_locally: true, cache: new UniversalCache(false) })
+          for (const client of ['TV_SIMPLY', 'IOS', 'YTMUSIC']) {
+            try {
+              const info = await yt.getBasicInfo('FGBhQbmPwH8', { client })
+              console.log(client, info.playability_status?.status, info.playability_status?.reason ?? '')
+            } catch (e) { console.log(client, 'ERR', e.message) }
+          }
+          JS
+          node yt-net.mjs
       - name: Generate native project
         run: npx expo prebuild --platform ios --no-install
       - name: Install pods
