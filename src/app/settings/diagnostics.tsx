@@ -58,6 +58,18 @@ async function runAll(report: (r: Result) => void) {
     return `token ${s.token.length} chars, valid until ${new Date(s.expiresAt).toLocaleTimeString()}`
   })
 
+  if (yt) {
+    const track: Track = yt
+    await run('YouTube token accepted (audio past 1 MB)', async () => {
+      const p = await youtube.plan(track.id, 'mid')
+      const u = new URL(p.url)
+      u.searchParams.set('range', '2000000-2065535')
+      const res = await fetch(u.toString())
+      if (!res.ok) throw new Error(`HTTP ${res.status} (token rejected)`)
+      return `HTTP ${res.status}, ${p.quality}, ${(p.bytes ?? 0) / 1e6} MB file`
+    })
+  }
+
   let ytFile: string | null = null
   if (yt) {
     const track: Track = yt

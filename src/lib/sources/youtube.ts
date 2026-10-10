@@ -207,7 +207,7 @@ class YouTube {
         retrieve_player: true,
         generate_session_locally: true,
         visitor_data: session.visitorData,
-        po_token: session.token,
+        // the token goes on the audio address only (pot=), not on the player request
         cache: diskCache,
       }).catch((err) => {
         this.streamClient = null
