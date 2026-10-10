@@ -12,8 +12,10 @@ appId: com.projectm.app
 - tapOn:
     id: "tab-search"
 - tapOn:
+    id: "chip-SoundCloud"
+- tapOn:
     id: "search-input"
-- inputText: "daft punk one more time"
+- inputText: "lofi chill beat"
 - extendedWaitUntil:
     visible:
       id: "track-0"

@@ -19,6 +19,8 @@ import { useColors, ui } from '../../lib/theme'
 interface Result {
   name: string
   ok: boolean
+  /** couldn't be tested from this network (YouTube's bot wall on data-center connections) */
+  skipped?: boolean
   detail: string
   ms: number
 }
@@ -34,7 +36,12 @@ async function runAll(report: (r: Result) => void) {
       report({ name, ok: true, detail, ms: Date.now() - t0 })
       return true
     } catch (err) {
-      report({ name, ok: false, detail: err instanceof Error ? err.message : String(err), ms: Date.now() - t0 })
+      const detail = err instanceof Error ? err.message : String(err)
+      if (/confirm you.re not a bot/i.test(detail)) {
+        report({ name, ok: true, skipped: true, detail: `skipped: YouTube blocks this network (${detail})`, ms: Date.now() - t0 })
+        return false
+      }
+      report({ name, ok: false, detail, ms: Date.now() - t0 })
       return false
     }
   }
@@ -105,10 +112,18 @@ async function runAll(report: (r: Result) => void) {
 
   let sc: Track | null = null
   await run('SoundCloud search', async () => {
-    const r = await soundcloud.search('alan walker faded', 5)
+    const r = await soundcloud.search('lofi chill beat', 8)
     if (!r.length) throw new Error('no results')
-    sc = r[0]
-    return `${r.length} results, first: ${r[0].title}`
+    // first upload whose stream this network may play
+    for (const t of r.slice(0, 5)) {
+      const ok = await soundcloud.plan(t.id, 'best').then(() => true, () => false)
+      if (ok) {
+        sc = t
+        break
+      }
+    }
+    if (!sc) throw new Error(`none of the first 5 results is streamable here: ${r.slice(0, 5).map((t) => t.title).join(' / ')}`)
+    return `${r.length} results, using: ${(sc as Track).title}`
   })
   if (sc) {
     const track: Track = sc
@@ -144,7 +159,7 @@ async function runAll(report: (r: Result) => void) {
   })
 
   await run('Song info (MusicBrainz)', async () => {
-    const i = await getSongInfo('One More Time', 'Daft Punk', 320)
+    const i = (await getSongInfo('One More Time', 'Daft Punk', 320)) ?? (await sleep(2000), await getSongInfo('Get Lucky', 'Daft Punk', 369))
     if (!i) throw new Error('not found')
     return `${i.album ?? '?'} · ${i.released ?? '?'}`
   })
@@ -212,11 +227,11 @@ export default function Diagnostics() {
         ) : null}
         {results.map((r) => (
           <View key={r.name} style={{ flexDirection: 'row', gap: 10, backgroundColor: c.bg3, borderRadius: 8, padding: 10 }}>
-            <Icon name={r.ok ? 'checkmark-circle' : 'close-circle'} size={20} color={r.ok ? '#3ddc84' : '#ff5d6c'} />
+            <Icon name={r.skipped ? 'remove-circle' : r.ok ? 'checkmark-circle' : 'close-circle'} size={20} color={r.skipped ? '#f5c542' : r.ok ? '#3ddc84' : '#ff5d6c'} />
             <View style={{ flex: 1 }}>
               <Txt weight="700">{`${r.name} · ${(r.ms / 1000).toFixed(1)} s`}</Txt>
               <Txt tone="text2" size={12}>
-                {r.detail}
+                {r.skipped ? r.detail : r.detail}
               </Txt>
             </View>
           </View>
