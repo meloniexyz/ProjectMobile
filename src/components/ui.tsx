@@ -6,7 +6,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, t
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { SourceId } from '../core/types'
 import { SOURCES } from '../lib/sources'
-import { useColors, ui } from '../lib/theme'
+import { fontFor, useColors, ui } from '../lib/theme'
 
 export type IconName = ComponentProps<typeof Ionicons>['name']
 
@@ -35,7 +35,7 @@ export function Txt({
   const c = useColors()
   const color = tone === 'accent' ? c.accent : c[tone]
   return (
-    <Text testID={testID} numberOfLines={lines} style={[{ color, fontSize: size, fontWeight: weight }, style]}>
+    <Text testID={testID} numberOfLines={lines} style={[{ color, fontSize: size, ...fontFor(c, weight) }, style]}>
       {children}
     </Text>
   )
@@ -112,8 +112,10 @@ export function Button({
   style?: StyleProp<ViewStyle>
 }) {
   const c = useColors()
-  const bg = kind === 'primary' ? c.accent : kind === 'secondary' ? c.bg3 : 'transparent'
-  const fg = kind === 'primary' ? c.accentInk : kind === 'danger' ? '#ff5d6c' : c.text
+  const feishin = c.skin === 'feishin'
+  // Feishin: white rounded-rectangle buttons instead of accent pills
+  const bg = kind === 'primary' ? (feishin ? '#ffffff' : c.accent) : kind === 'secondary' ? c.bg3 : 'transparent'
+  const fg = kind === 'primary' ? (feishin ? '#000000' : c.accentInk) : kind === 'danger' ? '#ff5d6c' : c.text
   return (
     <Pressable
       accessibilityRole="button"
@@ -128,7 +130,7 @@ export function Button({
           justifyContent: 'center',
           gap: 8,
           backgroundColor: bg,
-          borderRadius: 999,
+          borderRadius: feishin ? 9 : 999,
           paddingHorizontal: small ? 14 : 20,
           paddingVertical: small ? 7 : 11,
           opacity: disabled ? 0.45 : pressed ? 0.75 : 1,
@@ -139,7 +141,7 @@ export function Button({
       ]}
     >
       {busy ? <ActivityIndicator size="small" color={fg} /> : icon ? <Ionicons name={icon} size={small ? 15 : 18} color={fg} /> : null}
-      <Text style={{ color: fg, fontWeight: '700', fontSize: small ? 13 : 15 }}>{title}</Text>
+      <Text style={{ color: fg, fontSize: small ? 13 : 15, ...fontFor(c, '700') }}>{title}</Text>
     </Pressable>
   )
 }
@@ -158,12 +160,12 @@ export function Chip({ label, active, onPress, color }: { label: string; active?
         gap: 6,
         paddingHorizontal: 14,
         paddingVertical: 7,
-        borderRadius: 999,
-        backgroundColor: active ? c.accent : c.bg3,
+        borderRadius: c.skin === 'feishin' ? 6 : 999,
+        backgroundColor: active ? (c.skin === 'feishin' ? c.text : c.accent) : c.bg3,
       }}
     >
       {color ? <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: color }} /> : null}
-      <Text style={{ color: active ? c.accentInk : c.text, fontWeight: '600', fontSize: 13 }}>{label}</Text>
+      <Text style={{ color: active ? (c.skin === 'feishin' ? '#000000' : c.accentInk) : c.text, fontSize: 13, ...fontFor(c, '600') }}>{label}</Text>
     </Pressable>
   )
 }

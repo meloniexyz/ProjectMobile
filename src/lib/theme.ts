@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import type { TextStyle } from 'react-native'
 import { themeById, THEMES, ACCENT_SWATCHES, type Theme } from '../core/themes'
 import { useSettings, getSettings } from './settings'
 
@@ -45,6 +46,22 @@ export function useColors(): Colors {
 }
 
 export const currentColors = () => colorsFor(getSettings().theme, getSettings().accent)
+
+const INTER: Record<string, string> = {
+  '400': 'Inter_400Regular',
+  normal: 'Inter_400Regular',
+  '500': 'Inter_500Medium',
+  '600': 'Inter_600SemiBold',
+  '700': 'Inter_700Bold',
+  bold: 'Inter_700Bold',
+  '800': 'Inter_800ExtraBold',
+  '900': 'Inter_800ExtraBold',
+}
+/** Font for the theme's skin: the Feishin theme uses Inter (one font file per weight on iOS). */
+export function fontFor(c: Colors, weight?: TextStyle['fontWeight']): TextStyle {
+  if (c.skin !== 'feishin') return { fontWeight: weight }
+  return { fontFamily: INTER[String(weight ?? '400')] ?? 'Inter_400Regular' }
+}
 
 /** Spacing / type scale used everywhere. */
 export const ui = {

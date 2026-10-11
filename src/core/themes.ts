@@ -16,6 +16,8 @@ export interface Theme {
   text2: string
   text3: string
   accent: string
+  /** optional look on top of the colours (font, shapes) - 'feishin' */
+  skin?: string
 }
 
 export const THEMES: Theme[] = [
@@ -28,6 +30,7 @@ export const THEMES: Theme[] = [
   { id: 'mint', name: 'Mint', bg: '#050f0c', bg1: '#0a1613', bg2: '#0f1e1a', bg3: '#162923', bg4: '#1e352e', hover: '#0e1b17', line: '#15261f', line2: '#20362e', elev: '#132520', elev2: '#1e352e', text: '#e6f5f0', text2: '#9dbcb2', text3: '#628076', accent: '#34d3a6' },
   { id: 'gold', name: 'Gold', bg: '#0b0a06', bg1: '#13110b', bg2: '#1a1810', bg3: '#242116', bg4: '#302c1e', hover: '#1b1911', line: '#252217', line2: '#353123', elev: '#211e13', elev2: '#302c1d', text: '#f5f1e4', text2: '#bdb59c', text3: '#817a63', accent: '#f5c542' },
   { id: 'graphite', name: 'Graphite', bg: '#0a0a0a', bg1: '#121212', bg2: '#191919', bg3: '#222222', bg4: '#2d2d2d', hover: '#1a1a1a', line: '#242424', line2: '#333333', elev: '#1f1f1f', elev2: '#2c2c2c', text: '#eeeeee', text2: '#a8a8a8', text3: '#6e6e6e', accent: '#e8e8ee' },
+  { id: 'feishin', name: 'Feishin', skin: 'feishin', bg: '#080808', bg1: '#0c0c0c', bg2: '#141414', bg3: '#1c1c1c', bg4: '#262626', hover: '#171717', line: '#1c1c1c', line2: '#2a2a2a', elev: '#141414', elev2: '#222222', text: '#e1e1e1', text2: '#969696', text3: '#6a6a6a', accent: '#3574fc' },
   { id: 'amoled', name: 'AMOLED Black', bg: '#000000', bg1: '#000000', bg2: '#0b0b0e', bg3: '#16161b', bg4: '#202027', hover: '#0e0e12', line: '#18181e', line2: '#26262e', elev: '#111116', elev2: '#1e1e25', text: '#f0f0f4', text2: '#a3a3b2', text3: '#66667a', accent: '#8b7cff' },
   { id: 'nord', name: 'Nord', bg: '#1b1f27', bg1: '#242933', bg2: '#2b313d', bg3: '#343b49', bg4: '#3e4656', hover: '#2a303b', line: '#313745', line2: '#3f4757', elev: '#2e3440', elev2: '#3b4252', text: '#eceff4', text2: '#c0c7d4', text3: '#818a9b', accent: '#88c0d0' },
   { id: 'dracula', name: 'Dracula', bg: '#1a1b23', bg1: '#21222c', bg2: '#282a36', bg3: '#313442', bg4: '#3b3e4f', hover: '#2a2c38', line: '#2e3040', line2: '#3c3f52', elev: '#2b2d3a', elev2: '#383b4c', text: '#f8f8f2', text2: '#c2c3d4', text3: '#7f82a0', accent: '#bd93f9' },

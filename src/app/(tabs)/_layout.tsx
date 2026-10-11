@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { MiniPlayer } from '../../components/MiniPlayer'
 import { usePlayer } from '../../lib/player'
 import { useSettings } from '../../lib/settings'
-import { useColors } from '../../lib/theme'
+import { fontFor, useColors } from '../../lib/theme'
 
 const TABS: Record<string, { label: string; icon: keyof typeof Ionicons.glyphMap; active: keyof typeof Ionicons.glyphMap }> = {
   index: { label: 'Home', icon: 'home-outline', active: 'home' },
@@ -40,7 +40,7 @@ function TabBar({ state, navigation, insets }: BottomTabBarProps) {
               style={{ flex: 1, alignItems: 'center', paddingVertical: 6, gap: 2 }}
             >
               <Ionicons name={focused ? t.active : t.icon} size={24} color={focused ? c.text : c.text2} />
-              <Text style={{ fontSize: 11, color: focused ? c.text : c.text2, fontWeight: focused ? '700' : '500' }}>{t.label}</Text>
+              <Text style={{ fontSize: 11, color: focused ? c.text : c.text2, ...fontFor(c, focused ? '700' : '500') }}>{t.label}</Text>
             </Pressable>
           )
         })}

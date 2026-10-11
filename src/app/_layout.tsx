@@ -1,6 +1,7 @@
 import '../lib/polyfills'
 import { File } from 'expo-file-system'
 import { DarkTheme, router, Stack, ThemeProvider } from 'expo-router'
+import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold, useFonts } from '@expo-google-fonts/inter'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 import { useEffect, useMemo } from 'react'
@@ -18,6 +19,8 @@ boot()
 
 export default function RootLayout() {
   const c = useColors()
+  // Inter for the Feishin theme; until it loads, text falls back to the system font
+  useFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold })
   const navTheme = useMemo(
     () => ({ ...DarkTheme, colors: { ...DarkTheme.colors, background: c.bg, card: c.bg, text: c.text, border: c.line, primary: c.accent } }),
     [c],
