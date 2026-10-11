@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, useWindowDimensions, View } f
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { fmtTime } from '../core/format'
 import { LyricsCard, SongInfoCard } from '../components/Lyrics'
+import { Swipeable } from '../components/Swipe'
 import { Slider } from '../components/Slider'
 import { Artwork, Icon, IconButton, SourceRoute, Txt } from '../components/ui'
 import { cycleRepeat, next, prev, seek, toggle, toggleShuffle, usePlayer } from '../lib/player'
@@ -44,7 +45,7 @@ export default function PlayerScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       {/* top bar stays put while the lyrics scroll */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingTop: insets.top + 4, paddingBottom: 6, backgroundColor: c.bg }}>
+      <Swipeable onDown={closePlayer} follow="none" style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingTop: insets.top + 4, paddingBottom: 6, backgroundColor: c.bg }}>
         <IconButton name="chevron-down" size={28} label="Close player" onPress={closePlayer} />
         <View style={{ flex: 1, alignItems: 'center' }}>
           <Txt tone="text2" size={11} weight="700">
@@ -55,12 +56,13 @@ export default function PlayerScreen() {
           </View>
         </View>
         <IconButton name="ellipsis-horizontal" label="More" onPress={() => openTrackSheet(track)} />
-      </View>
+      </Swipeable>
       <ScrollView contentContainerStyle={{ paddingTop: 8, paddingBottom: insets.bottom + 40, gap: 18 }}>
 
-        <View style={{ alignItems: 'center' }}>
+        {/* swipe the cover: left / right = next / previous, down = close */}
+        <Swipeable onLeft={next} onRight={prev} onDown={closePlayer} style={{ alignItems: 'center' }}>
           <Artwork src={track.artwork} size={art} radius={8} />
-        </View>
+        </Swipeable>
 
         <View style={{ paddingHorizontal: ui.pad, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <View style={{ flex: 1 }}>

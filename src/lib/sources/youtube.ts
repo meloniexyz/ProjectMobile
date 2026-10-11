@@ -66,6 +66,11 @@ interface PotSession {
   expiresAt: number
 }
 const potFile = new JsonFile<PotSession | null>('youtube-session.json', null)
+const potFileServer = new JsonFile<PotSession | null>('youtube-session-server.json', null)
+
+/** How songs are fetched: TV client on a phone-made session, on a YouTube-issued session, or your signed-in account. */
+type StreamMethod = 'tv-simply' | 'tv-simply-server' | 'account'
+const methodFile = new JsonFile<{ method?: StreamMethod }>('youtube-method.json', {})
 
 // ---------- shapes ----------
 
@@ -150,13 +155,13 @@ export interface DeviceCode {
 class YouTube {
   /** search (no login, no player script needed) */
   private searchClient: Promise<Innertube> | null = null
-  /** streaming: TV_SIMPLY client on the PO-token session */
-  private streamClient: Promise<Innertube> | null = null
-  private streamClientVisitor: string | null = null
+  /** streaming clients per connection method */
+  private streamClients = new Map<StreamMethod, { visitor: string; yt: Promise<Innertube> }>()
+  private accountStreamClient: Promise<Innertube> | null = null
   /** your library (TV app sign-in) */
   private authedClient: Promise<Innertube> | null = null
   private userName: string | null = null
-  private minting: Promise<PotSession> | null = null
+  private minting = new Map<string, Promise<PotSession>>()
   private loginAttempt = 0
   onDeviceCode: (code: DeviceCode | null) => void = () => {}
 
@@ -170,51 +175,81 @@ class YouTube {
     return this.searchClient
   }
 
-  // ---------- PO token session ----------
+  // ---------- PO token sessions ----------
 
-  /** A valid session token, minting a new one if it's missing or about to expire. */
-  async potSession(force = false): Promise<PotSession> {
-    const cur = potFile.get()
+  /**
+   * A valid session token, minting a new one if it's missing or about to expire.
+   * `server`: use a session id issued by YouTube instead of one made on the phone.
+   */
+  async potSession(force = false, server = false): Promise<PotSession> {
+    const file = server ? potFileServer : potFile
+    const cur = file.get()
     if (!force && cur && cur.expiresAt - Date.now() > 10 * 60_000) return cur
-    this.minting ??= (async () => {
-      const yt = await Innertube.create({ retrieve_player: false, generate_session_locally: true, cache: diskCache })
-      const visitorData = yt.session.context.client.visitorData
-      if (!visitorData) throw new Error('YouTube gave no session id')
-      const res = await yt.getAttestationChallenge('ENGAGEMENT_TYPE_UNBOUND')
-      const bg = res.bg_challenge
-      const interpreterUrl = bg?.interpreter_url.private_do_not_access_or_else_trusted_resource_url_wrapped_value
-      if (!bg || !interpreterUrl) throw new Error('YouTube sent no BotGuard challenge')
-      const { token, ttl } = await mintSessionToken(visitorData, { program: bg.program, globalName: bg.global_name, interpreterUrl })
-      // the integrity token usually lasts 12 h; renew well before
-      const session: PotSession = { visitorData, token, expiresAt: Date.now() + Math.max(1800, Math.min(ttl, 6 * 3600)) * 1000 }
-      potFile.set(session, true)
-      return session
-    })().finally(() => (this.minting = null))
-    return this.minting
+    const key = server ? 'server' : 'local'
+    let job = this.minting.get(key)
+    if (!job) {
+      job = (async () => {
+        const yt = await Innertube.create({ retrieve_player: false, generate_session_locally: !server, cache: diskCache })
+        const visitorData = yt.session.context.client.visitorData
+        if (!visitorData) throw new Error('YouTube gave no session id')
+        const res = await yt.getAttestationChallenge('ENGAGEMENT_TYPE_UNBOUND')
+        const bg = res.bg_challenge
+        const interpreterUrl = bg?.interpreter_url.private_do_not_access_or_else_trusted_resource_url_wrapped_value
+        if (!bg || !interpreterUrl) throw new Error('YouTube sent no BotGuard challenge')
+        const { token, ttl } = await mintSessionToken(visitorData, { program: bg.program, globalName: bg.global_name, interpreterUrl })
+        // the integrity token usually lasts 12 h; renew well before
+        const session: PotSession = { visitorData, token, expiresAt: Date.now() + Math.max(1800, Math.min(ttl, 6 * 3600)) * 1000 }
+        file.set(session, true)
+        return session
+      })().finally(() => this.minting.delete(key))
+      this.minting.set(key, job)
+    }
+    return job
   }
 
   /** Refreshes the token in the foreground when it's getting old, so locked-screen playback never needs the web page. */
   warmUp() {
-    const cur = potFile.get()
-    if (!cur || cur.expiresAt - Date.now() < 2 * 3600_000) this.potSession(!!cur).catch((e) => console.warn('[youtube] token', e))
+    const method = methodFile.get().method ?? 'tv-simply'
+    if (method === 'account') return
+    const server = method === 'tv-simply-server'
+    const cur = (server ? potFileServer : potFile).get()
+    if (!cur || cur.expiresAt - Date.now() < 2 * 3600_000) this.potSession(!!cur, server).catch((e) => console.warn('[youtube] token', e))
   }
 
-  private async stream_() {
-    const session = await this.potSession()
-    if (!this.streamClient || this.streamClientVisitor !== session.visitorData) {
-      this.streamClientVisitor = session.visitorData
-      this.streamClient = Innertube.create({
+  /** The streaming client for a connection method (cached per session). */
+  private async client(method: StreamMethod): Promise<{ yt: Innertube; token: string | null; clientName: 'TV_SIMPLY' | 'TV' }> {
+    if (method === 'account') {
+      if (!this.saved()) throw new Error('not signed in to YouTube')
+      this.accountStreamClient ??= (async () => {
+        const yt = await Innertube.create({ retrieve_player: true, client_type: ClientType.TV, cache: diskCache })
+        yt.session.on('update-credentials', ({ credentials }) => {
+          if (credentials?.access_token) void secrets.set(OAUTH_KEY, JSON.stringify(credentials))
+        })
+        await yt.session.signIn(this.saved()!)
+        return yt
+      })().catch((err) => {
+        this.accountStreamClient = null
+        throw err
+      })
+      return { yt: await this.accountStreamClient, token: null, clientName: 'TV' }
+    }
+    const server = method === 'tv-simply-server'
+    const session = await this.potSession(false, server)
+    const cached = this.streamClients.get(method)
+    if (!cached || cached.visitor !== session.visitorData) {
+      const yt = Innertube.create({
         retrieve_player: true,
         generate_session_locally: true,
         visitor_data: session.visitorData,
         // the token goes on the audio address only (pot=), not on the player request
         cache: diskCache,
       }).catch((err) => {
-        this.streamClient = null
+        this.streamClients.delete(method)
         throw err
       })
+      this.streamClients.set(method, { visitor: session.visitorData, yt })
     }
-    return { yt: await this.streamClient, session }
+    return { yt: await this.streamClients.get(method)!.yt, token: session.token, clientName: 'TV_SIMPLY' }
   }
 
   // ---------- search ----------
@@ -244,63 +279,97 @@ class YouTube {
 
   // ---------- streaming ----------
 
-  /**
-   * Where to download a song from. iPhones play AAC (not YouTube's Opus), so the choice is
-   * itag 139 (~48 kbps), 140 (~128 kbps) or, rarely, 141 (256 kbps).
-   */
-  async plan(id: string, quality: Quality, retry = true): Promise<StreamPlan> {
-    const { yt, session } = await this.stream_()
-    try {
-      const info = await yt.getBasicInfo(id, { client: 'TV_SIMPLY' })
-      const status = info.playability_status?.status
-      if (status && status !== 'OK') throw new Error(info.playability_status?.reason || `not playable (${status})`)
-      const aac = [...(info.streaming_data?.adaptive_formats ?? [])]
-        .filter((f) => f.has_audio && !f.has_video && f.mime_type.startsWith('audio/mp4'))
-        .sort((a, b) => (a.bitrate ?? 0) - (b.bitrate ?? 0))
-      if (!aac.length) throw new Error('no iPhone-playable audio for this song')
-      const pick =
-        quality === 'low'
-          ? aac[0]
-          : quality === 'mid'
-            ? (aac.find((f) => f.itag === 140) ?? aac[aac.length - 1])
-            : aac[aac.length - 1]
-      const url = new URL(await pick.decipher(yt.session.player))
-      url.searchParams.set('pot', session.token)
-      const bytes = Number(pick.content_length) || 0
-      if (bytes) url.searchParams.set('range', `0-${bytes - 1}`)
-      const kbps = Math.round((pick.average_bitrate ?? pick.bitrate ?? 128_000) / 1000)
-      return {
-        source: 'youtube',
-        id,
-        kind: 'file',
-        url: url.toString(),
-        ext: 'm4a',
-        codec: 'aac',
-        kbps,
-        quality: `AAC · ${kbps} kbps`,
-        bytes,
-        gainDb:
-          pick.track_absolute_loudness_lkfs != null
-            ? -14 - pick.track_absolute_loudness_lkfs
-            : pick.loudness_db != null
-              ? -pick.loudness_db
-              : undefined,
-      }
-    } catch (err) {
-      // a rejected token or stale player script: start a fresh session once
-      if (retry && /403|sign in|bot|token/i.test(String(err))) {
-        this.streamClient = null
-        await this.potSession(true)
-        return this.plan(id, quality, false)
-      }
-      throw err
+  /** Connection methods in the order to try: the one that worked last time first. */
+  private methodOrder(): StreamMethod[] {
+    const all: StreamMethod[] = ['tv-simply', 'tv-simply-server', ...(this.saved() ? (['account'] as StreamMethod[]) : [])]
+    const last = methodFile.get().method
+    return last && all.includes(last) ? [last, ...all.filter((m) => m !== last)] : all
+  }
+
+  /** One attempt with one connection method. */
+  private async planWith(method: StreamMethod, id: string, quality: Quality): Promise<StreamPlan> {
+    const { yt, token, clientName } = await this.client(method)
+    const info = await yt.getBasicInfo(id, { client: clientName })
+    const status = info.playability_status?.status
+    if (status && status !== 'OK') throw new Error(info.playability_status?.reason || `not playable (${status})`)
+    const aac = [...(info.streaming_data?.adaptive_formats ?? [])]
+      .filter((f) => f.has_audio && !f.has_video && f.mime_type.startsWith('audio/mp4'))
+      .sort((a, b) => (a.bitrate ?? 0) - (b.bitrate ?? 0))
+    if (!aac.length) throw new Error('no iPhone-playable audio for this song')
+    const pick = quality === 'low' ? aac[0] : quality === 'mid' ? (aac.find((f) => f.itag === 140) ?? aac[aac.length - 1]) : aac[aac.length - 1]
+    const url = new URL(await pick.decipher(yt.session.player))
+    if (token) url.searchParams.set('pot', token)
+    const bytes = Number(pick.content_length) || 0
+    if (bytes) url.searchParams.set('range', `0-${bytes - 1}`)
+    const kbps = Math.round((pick.average_bitrate ?? pick.bitrate ?? 128_000) / 1000)
+    return {
+      source: 'youtube',
+      id,
+      kind: 'file',
+      url: url.toString(),
+      ext: 'm4a',
+      codec: 'aac',
+      kbps,
+      quality: `AAC · ${kbps} kbps`,
+      bytes,
+      gainDb:
+        pick.track_absolute_loudness_lkfs != null
+          ? -14 - pick.track_absolute_loudness_lkfs
+          : pick.loudness_db != null
+            ? -pick.loudness_db
+            : undefined,
     }
   }
 
-  /** The URL failed with 403 while downloading: next plan() starts a fresh session. */
+  /**
+   * Where to download a song from. iPhones play AAC (not YouTube's Opus), so the choice is
+   * itag 139 (~48 kbps), 140 (~128 kbps) or, rarely, 141 (256 kbps).
+   * If YouTube answers with its "confirm you're not a bot" check, the next connection method is
+   * tried (a session id from YouTube itself, then your signed-in account); the one that works is
+   * remembered.
+   */
+  async plan(id: string, quality: Quality): Promise<StreamPlan> {
+    let lastErr: unknown
+    for (const method of this.methodOrder()) {
+      try {
+        const p = await this.planWith(method, id, quality)
+        if (methodFile.get().method !== method) methodFile.set({ method }, true)
+        return p
+      } catch (err) {
+        lastErr = err
+        // only the bot check (or a stale session) is worth another method; "video unavailable" isn't
+        if (!/confirm you.re not a bot|sign in|403|token/i.test(String((err as Error)?.message ?? err))) throw err
+      }
+    }
+    throw lastErr
+  }
+
+  /** For diagnostics: what YouTube says to each connection method on this phone. */
+  async probeMethods(id: string): Promise<{ method: StreamMethod; ok: boolean; detail: string }[]> {
+    const out: { method: StreamMethod; ok: boolean; detail: string }[] = []
+    for (const method of ['tv-simply', 'tv-simply-server', 'account'] as StreamMethod[]) {
+      if (method === 'account' && !this.saved()) {
+        out.push({ method, ok: false, detail: 'not signed in (Settings → Accounts → YouTube)' })
+        continue
+      }
+      try {
+        const p = await this.planWith(method, id, 'mid')
+        const u = new URL(p.url)
+        u.searchParams.set('range', '2000000-2065535')
+        const r = await fetch(u.toString())
+        out.push({ method, ok: r.ok, detail: r.ok ? `plays (${p.quality})` : `info OK but audio HTTP ${r.status}` })
+      } catch (err) {
+        out.push({ method, ok: false, detail: (err as Error).message })
+      }
+    }
+    return out
+  }
+
+  /** The URL failed with 403 while downloading: next plan() starts fresh sessions. */
   invalidateSession() {
     potFile.set(null, true)
-    this.streamClient = null
+    potFileServer.set(null, true)
+    this.streamClients.clear()
   }
 
   // ---------- account (YouTube's TV sign-in: a code you approve at google.com/device) ----------
@@ -385,6 +454,7 @@ class YouTube {
   async logout() {
     await secrets.set(OAUTH_KEY, null)
     this.authedClient = null
+    this.accountStreamClient = null
     this.userName = null
     this.nameLookup = null
     this.likedIds = null

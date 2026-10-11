@@ -67,6 +67,17 @@ async function runAll(report: (r: Result) => void) {
 
   if (yt) {
     const track: Track = yt
+    await run('YouTube connection methods', async () => {
+      const r = await youtube.probeMethods(track.id)
+      const names: Record<string, string> = { 'tv-simply': 'TV (phone session)', 'tv-simply-server': 'TV (YouTube session)', account: 'Signed-in account' }
+      const text = r.map((m) => `${m.ok ? '✓' : '✗'} ${names[m.method]}: ${m.detail}`).join('\n')
+      if (!r.some((m) => m.ok)) throw new Error(text)
+      return text
+    })
+  }
+
+  if (yt) {
+    const track: Track = yt
     await run('YouTube token accepted (audio past 1 MB)', async () => {
       const p = await youtube.plan(track.id, 'mid')
       const u = new URL(p.url)

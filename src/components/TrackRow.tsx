@@ -4,7 +4,8 @@ import type { Track } from '../core/types'
 import { fmtTime } from '../core/format'
 import { useStore } from '../core/store'
 import { cacheStore, isDownloaded } from '../lib/audioCache'
-import { availableNow, playTracks, usePlayer } from '../lib/player'
+import { addToQueue, availableNow, playTracks, usePlayer } from '../lib/player'
+import { Swipeable } from './Swipe'
 import { useConnection } from '../lib/net'
 import { useColors, ui } from '../lib/theme'
 import { openTrackSheet } from '../lib/ui'
@@ -63,6 +64,8 @@ export function TrackRow({
   const downloaded = track.source !== 'local' && isDownloaded(track.uid)
   const available = availableNow(track)
   return (
+    // swipe right: add to queue (like Spotify)
+    <Swipeable onRight={() => addToQueue([track])}>
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${track.title} by ${track.artist}`}
@@ -98,6 +101,7 @@ export function TrackRow({
       </View>
       <IconButton name="ellipsis-horizontal" size={20} color={c.text2} label={`More for ${track.title}`} onPress={() => openTrackSheet(track, { playlistId })} />
     </Pressable>
+    </Swipeable>
   )
 }
 

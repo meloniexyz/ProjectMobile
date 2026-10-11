@@ -1,14 +1,15 @@
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect'
 import { router } from 'expo-router'
 import { ActivityIndicator, Pressable, View } from 'react-native'
-import { next, toggle, usePlayer } from '../lib/player'
+import { next, prev, toggle, usePlayer } from '../lib/player'
+import { Swipeable } from './Swipe'
 import { useColors } from '../lib/theme'
 import { openSaveSheet } from '../lib/ui'
 import { Artwork, IconButton, SourceRoute, Txt } from './ui'
 
 /**
  * The playing bar, like Spotify's: what's playing (and from where), play/pause and save.
- * Tap to open the full player.
+ * Tap (or swipe up) to open the full player; swipe left / right for next / previous.
  *  - 'bar': solid bar (classic look)
  *  - 'glass': floating Liquid Glass bar (native look, outside the tab bar)
  *  - 'accessory': inside iOS's tab bar accessory slot (the system draws the glass);
@@ -32,6 +33,7 @@ export function MiniPlayer({ variant = 'bar', inline = false }: { variant?: 'bar
   )
 
   const content = (
+    <Swipeable onLeft={next} onRight={prev} onUp={() => router.push('/player')}>
     <Pressable
       accessibilityRole="button"
       accessibilityLabel="Open player"
@@ -57,6 +59,7 @@ export function MiniPlayer({ variant = 'bar', inline = false }: { variant?: 'bar
       {playButton}
       {inline ? <IconButton name="play-forward" size={20} label="Next" onPress={next} /> : null}
     </Pressable>
+    </Swipeable>
   )
 
   const progressLine =
