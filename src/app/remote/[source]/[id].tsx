@@ -1,14 +1,16 @@
-import { useLocalSearchParams } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { useEffect } from 'react'
 import { View } from 'react-native'
 import type { RemotePlaylist, SourceId, Track } from '../../../core/types'
 import { CollectionHeader } from '../../../components/CollectionHeader'
 import { TrackList } from '../../../components/TrackRow'
-import { Empty, ErrorText, Header, Spinner } from '../../../components/ui'
+import { Button, Empty, ErrorText, Header, Spinner } from '../../../components/ui'
 import { cachedList, fetchers, keys, useList } from '../../../lib/accounts'
 import { updateCollection } from '../../../lib/downloads'
+import { createPlaylist } from '../../../lib/library'
 import { SOURCES } from '../../../lib/sources'
-import { useColors } from '../../../lib/theme'
+import { useColors, ui } from '../../../lib/theme'
+import { toast } from '../../../lib/ui'
 
 export default function RemotePlaylistScreen() {
   const c = useColors()
@@ -36,6 +38,20 @@ export default function RemotePlaylistScreen() {
               artwork={meta?.artwork ?? tracks[0]?.artwork}
               tracks={tracks}
               downloadKey={dlKey}
+            />
+            {/* a ProjectM copy can mix in songs from any service, and syncs to your other devices */}
+            <Button
+              title="Save to my playlists"
+              icon="add-circle-outline"
+              kind="ghost"
+              small
+              disabled={!tracks.length}
+              style={{ alignSelf: 'flex-start', marginHorizontal: ui.pad, marginBottom: 8 }}
+              onPress={() => {
+                const pid = createPlaylist(tracks, meta?.name ?? name)
+                toast('Saved to your playlists')
+                router.push({ pathname: '/playlist/[id]', params: { id: pid } })
+              }}
             />
             {loading && !data ? <Spinner /> : null}
             {error ? <ErrorText text={error} onRetry={refresh} /> : null}

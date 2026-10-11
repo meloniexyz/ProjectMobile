@@ -5,6 +5,7 @@ import type { Playlist, Track } from '../core/types'
 import { createStore } from '../core/store'
 import { dataDir, JsonFile, miscCacheDir, musicDir } from './storage'
 import { getSettings } from './settings'
+import { markPlaylistDeleted, playlistsChanged } from './sync'
 import { toast } from './ui'
 
 /**
@@ -180,6 +181,14 @@ export async function importSongs() {
 // ---------- playlists ----------
 
 function commit(playlists: Playlist[]) {
+  setSyncedPlaylists(playlists)
+  playlistsChanged()
+}
+
+export const getPlaylists = () => libStore.get().playlists
+
+/** Saves playlists without asking for a sync (used when they arrive from another device). */
+export function setSyncedPlaylists(playlists: Playlist[]) {
   playlistFile.set(playlists)
   libStore.set({ playlists })
   pruneKept(playlists)
@@ -259,6 +268,7 @@ export function updatePlaylistDetails(id: string, details: { name: string; descr
 }
 
 export function deletePlaylist(id: string) {
+  markPlaylistDeleted(id)
   commit(libStore.get().playlists.filter((p) => p.id !== id))
 }
 

@@ -1,3 +1,4 @@
+import { fromBase64, mergePlaylists, toBase64 } from '../../core/sync'
 import { File } from 'expo-file-system'
 import { useLocalSearchParams } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
@@ -179,6 +180,18 @@ async function runAll(report: (r: Result) => void) {
     const i = (await getSongInfo('One More Time', 'Daft Punk', 320)) ?? (await sleep(2000), await getSongInfo('Get Lucky', 'Daft Punk', 369))
     if (!i) throw new Error('not found')
     return `${i.album ?? '?'} · ${i.released ?? '?'}`
+  })
+
+  await run('Playlist sync (merge)', async () => {
+    const text = 'Şarkı ✓ 😀 "x"'
+    if (fromBase64(toBase64(text)) !== text) throw new Error('text encoding broke')
+    const t = { uid: 'spotify:1', source: 'spotify', id: '1', title: text, artist: 'a', album: 'b', duration: 1 } as const
+    const p = (id: string, updatedAt: number) => ({ id, name: id, tracks: [t], createdAt: 1, updatedAt })
+    const now = Date.now()
+    const r = mergePlaylists([p('a', now - 10), p('b', now - 10)], { b: now - 5 }, { v: 1, updatedAt: 0, playlists: [p('a', now - 1), p('c', now - 3)], deleted: {} }, now)
+    const ids = r.playlists.map((x) => x.id).join(',')
+    if (ids !== 'a,c' || r.playlists[0].updatedAt !== now - 1 || !r.upload) throw new Error(`merged to ${ids}`)
+    return 'newest edit wins, deletions and new playlists carried over'
   })
 
   await run('Equalizer solver', async () => {

@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Alert, PanResponder, Platform, ScrollView, Switch, View } from 'react-native'
 import type { EqBands } from '../../core/types'
 import { BAND_LAYOUTS, bandsToCurve, convertGains, curveToBands, EQ_MAX_DB, formatFreq, PRESETS } from '../../core/eqPresets'
@@ -10,7 +10,7 @@ import { useColors, ui } from '../../lib/theme'
 const H = 190
 const CURVE_FREQS = Array.from({ length: 64 }, (_, i) => 20 * Math.pow(1000, i / 63))
 
-function BandSlider({ index, gain, freq, enabled }: { index: number; gain: number; freq: number; enabled: boolean }) {
+function BandSlider({ index, gain, freq, enabled, onDrag }: { index: number; gain: number; freq: number; enabled: boolean; onDrag: (active: boolean) => void }) {
   const c = useColors()
   const set = (y: number) => {
     const g = Math.round(Math.max(-EQ_MAX_DB, Math.min(EQ_MAX_DB, ((H / 2 - y) / (H / 2)) * EQ_MAX_DB)) * 2) / 2
@@ -20,13 +20,24 @@ function BandSlider({ index, gain, freq, enabled }: { index: number; gain: numbe
     gains[index] = g
     updateSettings({ eq: { ...eq, gains, preset: 'Custom', enabled: true } })
   }
+  // where the finger first touched (inside the slider, and on screen), so moves follow the finger exactly
+  const start = useRef({ local: 0, page: 0 })
+  const dragRef = useRef(onDrag)
+  dragRef.current = onDrag
   const responder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onPanResponderTerminationRequest: () => false,
-      onPanResponderGrant: (e) => set(e.nativeEvent.locationY),
-      onPanResponderMove: (e) => set(e.nativeEvent.locationY),
+      onShouldBlockNativeResponder: () => true,
+      onPanResponderGrant: (e) => {
+        dragRef.current(true)
+        start.current = { local: e.nativeEvent.locationY, page: e.nativeEvent.pageY }
+        set(e.nativeEvent.locationY)
+      },
+      onPanResponderMove: (e) => set(start.current.local + e.nativeEvent.pageY - start.current.page),
+      onPanResponderRelease: () => dragRef.current(false),
+      onPanResponderTerminate: () => dragRef.current(false),
     }),
   ).current
   const y = H / 2 - (gain / EQ_MAX_DB) * (H / 2)
@@ -55,6 +66,8 @@ export default function Equalizer() {
   const c = useColors()
   const s = useSettings()
   const eq = s.eq
+  // the page doesn't scroll while a band is being dragged
+  const [dragging, setDragging] = useState(false)
   const layout = BAND_LAYOUTS[eq.bands]
   const response = useMemo(() => eqCurve(eq, CURVE_FREQS), [eq])
   const presets = [...PRESETS, ...eq.custom]
@@ -75,7 +88,7 @@ export default function Equalizer() {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <Header title="Equalizer" />
-      <ScrollView contentContainerStyle={{ paddingBottom: 160 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 160 }} scrollEnabled={!dragging}>
         <Row
           title="Equalizer"
           sub={eq.enabled ? eq.preset : 'Off'}
@@ -102,7 +115,7 @@ export default function Equalizer() {
 
         <View style={{ flexDirection: 'row', paddingHorizontal: 8, marginTop: 14 }}>
           {layout.map((b, i) => (
-            <BandSlider key={`${eq.bands}-${i}`} index={i} freq={b.freq} gain={eq.gains[i] ?? 0} enabled={eq.enabled} />
+            <BandSlider key={`${eq.bands}-${i}`} index={i} freq={b.freq} gain={eq.gains[i] ?? 0} enabled={eq.enabled} onDrag={setDragging} />
           ))}
         </View>
 

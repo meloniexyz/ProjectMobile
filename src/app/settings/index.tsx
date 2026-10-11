@@ -3,6 +3,7 @@ import { router } from 'expo-router'
 import { Alert, ScrollView, Switch, View } from 'react-native'
 import { useStore } from '../../core/store'
 import { Chip, Divider, Header, Row, Txt } from '../../components/ui'
+import { syncStore } from '../../lib/sync'
 import { accountStore } from '../../lib/accounts'
 import { clearHistory } from '../../lib/history'
 import { refreshLocalVisibility } from '../../lib/library'
@@ -46,6 +47,8 @@ export default function Settings() {
             chevron
           />
         ))}
+
+        <SyncSettingsRow />
 
         <Group title="Audio quality" />
         <Row
@@ -132,5 +135,18 @@ export default function Settings() {
         <Row title="Diagnostics" sub="Check that every source works on this phone" icon="medkit-outline" onPress={() => router.push('/settings/diagnostics')} chevron testID="settings-diagnostics" />
       </ScrollView>
     </View>
+  )
+}
+
+function SyncSettingsRow() {
+  const st = useStore(syncStore, (x) => x)
+  return (
+    <Row
+      title="Playlist sync"
+      sub={st.error ? `Couldn't sync: ${st.error}` : st.connected ? `On · ${st.account ?? 'GitHub'}` : 'Same playlists on your PC and phones'}
+      icon="sync-outline"
+      onPress={() => router.push('/settings/sync')}
+      chevron
+    />
   )
 }
