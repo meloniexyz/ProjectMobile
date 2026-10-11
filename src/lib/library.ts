@@ -72,6 +72,20 @@ export function localUri(id: string): string | null {
   return f.exists ? f.uri : null
 }
 
+// A local song from another device (synced playlist) plays this phone's copy of the same song:
+// same title and main artist, length within 3 s. Files are told apart by path, which differs per device.
+const squash = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '')
+const twinKey = (t: Pick<Track, 'title' | 'artist'>) => `${squash(t.title)}|${squash(t.artist.split(/,|&| feat\.? | ft\.? /i)[0] ?? '')}`
+
+/** file:// address for a local song: its own file, or this phone's copy of the same song. */
+export function localUriFor(t: Track): string | null {
+  const own = localUri(t.id)
+  if (own) return own
+  const key = twinKey(t)
+  const twin = localFile.get().tracks.find((c) => twinKey(c) === key && (!t.duration || !c.duration || Math.abs(c.duration - t.duration) <= 3))
+  return twin ? localUri(twin.id) : null
+}
+
 // ---------- scanning ----------
 
 function walk(dir: Directory, prefix: string, out: { rel: string; file: File }[]) {
@@ -282,4 +296,4 @@ export async function pickCover(): Promise<string | null> {
   return dest.uri
 }
 
-export const isPlaylistTrackAvailable = (t: Track) => t.source !== 'local' || !!localUri(t.id)
+export const isPlaylistTrackAvailable = (t: Track) => t.source !== 'local' || !!localUriFor(t)

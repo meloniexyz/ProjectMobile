@@ -6,7 +6,7 @@ import { NativeAudio, type NativeTrack } from '../../modules/projectm-audio'
 import { atLeast, ensureOnPhone, lookup, setGain, touch, trimCache, fileUri } from './audioCache'
 import { eqFilters } from './eq'
 import { flushListening, trackListening } from './history'
-import { localUri } from './library'
+import { localUriFor } from './library'
 import { canStream, streamQuality } from './net'
 import { getSettings, LOUDNESS_LUFS, settingsStore } from './settings'
 import { cleanError, SOURCES, youtube } from './sources'
@@ -139,7 +139,7 @@ class OfflineError extends Error {}
 
 /** Can this song play right now without the network? */
 export function availableNow(t: Track) {
-  if (t.source === 'local') return !!localUri(t.id)
+  if (t.source === 'local') return !!localUriFor(t)
   return canStream() || !!lookup(t.uid)
 }
 
@@ -152,7 +152,7 @@ async function prepare(item: QueueItem, purpose: 'play' | 'prefetch'): Promise<N
   let via: SourceId | null = null
 
   if (t.source === 'local') {
-    const u = localUri(t.id)
+    const u = localUriFor(t)
     if (!u) throw new Error('This file is no longer on the phone')
     uri = u
     gain = t.gainDb ?? loudness.get()[t.uid]

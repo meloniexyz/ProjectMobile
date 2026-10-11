@@ -11,7 +11,7 @@ import { hasNativeAudio, NativeAudio } from '../../../modules/projectm-audio'
 import { Button, Header, Icon, Txt } from '../../components/ui'
 import { ensureOnPhone, fileUri, lookup, removeDownload } from '../../lib/audioCache'
 import { eqFilters } from '../../lib/eq'
-import { getPlayer, playTracks, toggle } from '../../lib/player'
+import { getPlayer, playTracks, seek, toggle } from '../../lib/player'
 import { DEFAULT_MOBILE_SETTINGS } from '../../lib/settings'
 import { resolvePlan, soundcloud, youtube } from '../../lib/sources'
 import { dataDir } from '../../lib/storage'
@@ -155,8 +155,14 @@ async function runAll(report: (r: Result) => void) {
       for (let i = 0; i < 30 && !(getPlayer().playing && getPlayer().position > 1.5); i++) await sleep(500)
       const s = getPlayer()
       if (!s.playing || s.position < 1.5) throw new Error(`not playing (position ${s.position.toFixed(1)} s, error: ${s.error ?? 'none'})`)
+      // SoundCloud audio is stitched together from pieces: make sure jumping ahead works
+      const target = Math.min(45, Math.max(5, (getPlayer().duration || 60) - 15))
+      seek(target)
+      for (let i = 0; i < 16 && Math.abs(getPlayer().position - target) > 3; i++) await sleep(500)
+      const after = getPlayer().position
       toggle()
-      return `played to ${s.position.toFixed(1)} s · ${s.quality ?? ''}`
+      if (Math.abs(after - target) > 3) throw new Error(`seeking to ${target} s landed at ${after.toFixed(1)} s`)
+      return `played to ${s.position.toFixed(1)} s, seeked to ${after.toFixed(1)} s · ${s.quality ?? ''}`
     })
     await run('SoundCloud low quality plan', async () => {
       const p = await soundcloud.plan(track.id, 'low')

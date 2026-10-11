@@ -21,25 +21,29 @@ export function Slider({
   const [drag, setDrag] = useState<number | null>(null)
   const dragRef = useRef<number | null>(null)
   const at = (x: number) => Math.max(0, Math.min(1, x / width.current))
+  // the responder is made once, so it reads the latest props through this (otherwise a slider that
+  // started disabled, e.g. while a song loads, would stay locked, and seeks would use the old length)
+  const props = useRef({ disabled, onChange, onCommit })
+  props.current = { disabled, onChange, onCommit }
   const responder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => !disabled,
-      onMoveShouldSetPanResponder: () => !disabled,
+      onStartShouldSetPanResponder: () => !props.current.disabled,
+      onMoveShouldSetPanResponder: () => !props.current.disabled,
       onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: (e) => {
         const v = at(e.nativeEvent.locationX)
         dragRef.current = v
         setDrag(v)
-        onChange?.(v)
+        props.current.onChange?.(v)
       },
       onPanResponderMove: (e) => {
         const v = at(e.nativeEvent.locationX)
         dragRef.current = v
         setDrag(v)
-        onChange?.(v)
+        props.current.onChange?.(v)
       },
       onPanResponderRelease: () => {
-        if (dragRef.current != null) onCommit(dragRef.current)
+        if (dragRef.current != null) props.current.onCommit(dragRef.current)
         dragRef.current = null
         setDrag(null)
       },
