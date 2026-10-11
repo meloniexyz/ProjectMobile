@@ -1,6 +1,14 @@
 **Install / update:** download the `.ipa` below and install it with [Sideloadly](https://sideloadly.io) using the same Apple ID as before (your data stays). With a free Apple ID, reinstall every 7 days.
 
-**New in 1.2.1**
+**New in 1.3.0**
+- **Playlist sync:** Settings → Playlist sync → Connect GitHub. Your ProjectM playlists stay the same on this phone, ProjectM on your PC (1.0.12+) and your other phones, stored in your private `projectm-sync` GitHub repository.
+- **Save to my playlists:** Spotify, YouTube and SoundCloud playlists can be saved as ProjectM playlists, which mix songs from any service (like on PC).
+- **Right version of songs:** Spotify songs now play the explicit version when Spotify's is explicit (clean when it's clean); clean, censored, edited and radio-version copies are skipped. Songs are matched again with the new rules.
+- **Seek bar fixed:** you can drag it on SoundCloud songs (it stayed locked if the player opened while the song was loading).
+- **Equalizer:** the page no longer scrolls while you drag a band.
+- **Local songs across devices:** a song from your own files in a synced playlist plays this phone's copy if it has the same song.
+
+**From 1.2.1**
 - **Feishin theme** (Settings → Themes): the Feishin look with the Inter font, white rounded play buttons and flat chips, same as the new Feishin theme on Windows (ProjectM 1.0.11). Works with your own accent colour; nothing else changes.
 
 **From 1.2.0**
