@@ -37,6 +37,7 @@ interface ApiTrack {
   id: string | null
   name: string
   duration_ms: number
+  explicit?: boolean
   is_local?: boolean
   type?: string
   artists: { name: string }[]
@@ -57,6 +58,7 @@ const toTrack = (t: ApiTrack): Track => ({
   artist: t.artists.map((a) => a.name).join(', ') || 'Unknown Artist',
   album: t.album?.name || 'Spotify',
   duration: t.duration_ms / 1000,
+  explicit: t.explicit,
   artwork: pickImage(t.album?.images),
   trackNo: t.track_number,
   discNo: t.disc_number,

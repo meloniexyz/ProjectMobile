@@ -38,7 +38,7 @@ const CODEC_EFFICIENCY = { aac: 1.15, mp3: 1 } as const
 const effective = (p: StreamPlan) => p.kbps * CODEC_EFFICIENCY[p.codec]
 
 /** Matches found earlier, so a Spotify song is only searched for once (saves data). */
-const matches = new JsonFile<Record<string, { source: 'youtube' | 'soundcloud'; track: Track }>>('alternatives.json', {})
+const matches = new JsonFile<Record<string, { source: 'youtube' | 'soundcloud'; track: Track }>>('alternatives-v2.json', {}) // v2: matched with the explicit/clean rules
 
 export interface Resolved {
   plan: StreamPlan
