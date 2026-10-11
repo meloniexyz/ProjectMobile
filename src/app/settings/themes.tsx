@@ -1,3 +1,4 @@
+import { isLiquidGlassAvailable } from 'expo-glass-effect'
 import { Pressable, ScrollView, View } from 'react-native'
 import { Header, Icon, Txt } from '../../components/ui'
 import { updateSettings, useSettings } from '../../lib/settings'
@@ -9,7 +10,46 @@ export default function Themes() {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <Header title="Themes" />
-      <ScrollView contentContainerStyle={{ padding: ui.pad, paddingBottom: 60, gap: 18 }}>
+      <ScrollView contentContainerStyle={{ padding: ui.pad, paddingBottom: 160, gap: 18 }}>
+        <View>
+          <Txt size={16} weight="800">
+            Interface
+          </Txt>
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+            {(
+              [
+                { id: 'classic', title: 'Classic', sub: "ProjectM's own dark look, like the desktop app", icon: 'albums-outline' },
+                { id: 'glass', title: 'Liquid Glass', sub: 'Native iOS: glass tab bar, floating playing bar and glass sheets', icon: 'water-outline' },
+              ] as const
+            ).map((o) => {
+              const on = s.uiStyle === o.id
+              return (
+                <Pressable
+                  key={o.id}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: on }}
+                  accessibilityLabel={`Interface ${o.title}`}
+                  testID={`ui-${o.id}`}
+                  onPress={() => updateSettings({ uiStyle: o.id })}
+                  style={{ flex: 1, borderRadius: 12, padding: 12, gap: 6, backgroundColor: c.bg3, borderWidth: 2, borderColor: on ? c.accent : 'transparent' }}
+                >
+                  <Icon name={o.icon} size={22} color={on ? c.accent : c.text2} />
+                  <Txt size={15} weight="800">
+                    {o.title}
+                  </Txt>
+                  <Txt tone="text2" size={12}>
+                    {o.sub}
+                  </Txt>
+                </Pressable>
+              )
+            })}
+          </View>
+          {s.uiStyle === 'glass' && !isLiquidGlassAvailable() ? (
+            <Txt tone="text3" size={12} style={{ marginTop: 8 }}>
+              Liquid Glass needs iOS 26 or later; on older versions the native tab bar is used without the glass effect.
+            </Txt>
+          ) : null}
+        </View>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
           {THEMES.map((t) => {
             const on = s.theme === t.id

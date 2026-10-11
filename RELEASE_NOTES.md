@@ -1,10 +1,8 @@
-**Install:** download the `.ipa` below and sideload it with [Sideloadly](https://sideloadly.io) (Windows/Mac) or [AltStore](https://altstore.io) using your Apple ID. With a free Apple ID, refresh the app every 7 days.
+**Install / update:** download the `.ipa` below and install it with [Sideloadly](https://sideloadly.io) using the same Apple ID as before (your data stays). With a free Apple ID, reinstall every 7 days.
 
-The iPhone version of ProjectM: YouTube Music, SoundCloud, Spotify and local files in one app.
-
-- Spotify-style quality settings: Low / Mid / Best, separately for Wi-Fi, mobile data and downloads
-- Download switch on playlists and Liked Songs, offline mode, and a cache of played songs (replays use no data)
-- Background playback, lock screen / Control Center / headphone controls, gapless queue
-- Volume leveling, 3/5/7-band EQ, synced lyrics, song info, listening history and stats, 12 themes
-
-**Tested** on an iPhone 17 Pro simulator (iOS 26): search, SoundCloud download and playback, Spotify songs from SoundCloud, lyrics, song info, EQ, settings. **Not testable there:** YouTube playback, because YouTube blocks GitHub's servers; the same requests work from a home connection. Sign-ins (YouTube, Spotify) need the sideloaded app's keychain, so they're first tried on your phone.
+**New in this version**
+- **Liquid Glass** interface (Settings → Themes → Interface): iOS's native glass tab bar, with the playing bar in it like Apple Music (it shrinks into the tab bar while you scroll), plus glass sheets and a floating glass playing bar on other screens. Classic stays available.
+- **Playing bar on every screen** (playlists, Liked Songs, history, settings), like Spotify
+- **Spotify songs play from:** Best quality, YouTube Music or SoundCloud (Settings → Playback)
+- **Where a song plays from** is shown with platform logos: e.g. Spotify → YouTube, in the playing bar, the player, the queue and song lists
+- **YouTube backup:** if YouTube refuses your connection with a "confirm you're not a bot" check (common with VPNs), the song plays from SoundCloud instead (shown as YouTube → SoundCloud)

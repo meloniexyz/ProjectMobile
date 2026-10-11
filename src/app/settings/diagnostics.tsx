@@ -38,7 +38,7 @@ async function runAll(report: (r: Result) => void) {
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err)
       if (/confirm you.re not a bot/i.test(detail)) {
-        report({ name, ok: true, skipped: true, detail: `skipped: YouTube blocks this network (${detail})`, ms: Date.now() - t0 })
+        report({ name, ok: true, skipped: true, detail: `skipped: YouTube refused this connection with a bot check (common with VPNs and data-center networks): ${detail}`, ms: Date.now() - t0 })
         return false
       }
       report({ name, ok: false, detail, ms: Date.now() - t0 })
@@ -109,6 +109,12 @@ async function runAll(report: (r: Result) => void) {
       return `played to ${pos.toFixed(1)} s · ${s.quality ?? ''}`
     })
   }
+
+  await run('YouTube song (YouTube, or SoundCloud backup)', async () => {
+    const t: Track = { uid: 'youtube:diag', source: 'youtube', id: 'FGBhQbmPwH8', title: 'One More Time', artist: 'Daft Punk', album: 'Discovery', duration: 320 }
+    const r = await resolvePlan(t, 'mid')
+    return r.via ? `YouTube refused, playing from ${r.via.source}: ${r.via.title} · ${r.plan.quality}` : `from YouTube · ${r.plan.quality}`
+  })
 
   let sc: Track | null = null
   await run('SoundCloud search', async () => {
@@ -216,7 +222,7 @@ export default function Diagnostics() {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <Header title="Diagnostics" right={<Button small title={running ? 'Running…' : 'Run'} busy={running} onPress={start} />} />
-      <ScrollView contentContainerStyle={{ padding: ui.pad, gap: 10, paddingBottom: 60 }}>
+      <ScrollView contentContainerStyle={{ padding: ui.pad, gap: 10, paddingBottom: 160 }}>
         <Txt tone="text2" size={13}>
           Tests search, downloads, playback and lyrics on this phone. It downloads two songs (about 10 MB) and plays each for a moment.
         </Txt>

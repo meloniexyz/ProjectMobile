@@ -70,7 +70,7 @@ export default function QualitySettings() {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <Header title="Audio quality" />
-      <ScrollView contentContainerStyle={{ paddingBottom: 60 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 160 }}>
         <Txt tone="text2" size={13} style={{ paddingHorizontal: ui.pad }}>
           Songs you've played are kept on the phone, so playing them again uses no data. iPhones can't play YouTube's and SoundCloud's Opus streams, so ProjectM uses their AAC versions.
         </Txt>

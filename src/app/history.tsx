@@ -71,7 +71,7 @@ export default function History() {
         <FlatList
           data={items}
           keyExtractor={(i) => i.key}
-          contentContainerStyle={{ paddingBottom: 60 }}
+          contentContainerStyle={{ paddingBottom: 160 }}
           renderItem={({ item }) =>
             item.kind === 'day' ? (
               <Txt size={15} weight="800" style={{ paddingHorizontal: ui.pad, paddingTop: 16, paddingBottom: 6 }}>
@@ -155,7 +155,7 @@ function Stats({ entries }: { entries: ListenEntry[] }) {
       </View>
     ) : null
   return (
-    <ScrollView contentContainerStyle={{ paddingBottom: 60 }}>
+    <ScrollView contentContainerStyle={{ paddingBottom: 160 }}>
       <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: ui.pad, flexWrap: 'wrap' }}>
         {RANGES.map((r, i) => (
           <Chip key={r.label} label={r.label} active={range === i} onPress={() => setRange(i)} />

@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar'
 import { useEffect, useMemo } from 'react'
 import { View } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
+import { GlobalPlayingBar } from '../components/GlobalPlayingBar'
 import { SaveSheet, Toasts, TrackSheet } from '../components/Overlays'
 import { boot } from '../lib/boot'
 import { BotGuardHost } from '../lib/sources/botguard'
@@ -40,6 +41,7 @@ export default function RootLayout() {
             <Stack.Screen name="queue" options={{ presentation: 'modal' }} />
             <Stack.Screen name="spotify-login" options={{ presentation: 'modal' }} />
           </Stack>
+          <GlobalPlayingBar />
           <BotGuardHost />
           <TrackSheet />
           <SaveSheet />

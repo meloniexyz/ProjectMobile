@@ -206,7 +206,7 @@ export default function Accounts() {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <Header title="Accounts" />
-      <ScrollView contentContainerStyle={{ paddingBottom: 60 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 160 }}>
         <SpotifyCard />
         <YouTubeCard />
         <SoundCloudCard />

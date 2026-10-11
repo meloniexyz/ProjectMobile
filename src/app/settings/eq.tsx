@@ -75,7 +75,7 @@ export default function Equalizer() {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <Header title="Equalizer" />
-      <ScrollView contentContainerStyle={{ paddingBottom: 60 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 160 }}>
         <Row
           title="Equalizer"
           sub={eq.enabled ? eq.preset : 'Off'}

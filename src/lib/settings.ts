@@ -27,6 +27,10 @@ export interface MobileSettings {
   showLyrics: boolean
   /** hide local audio under 30 s (samples, voice memos) */
   hideShortClips: boolean
+  /** 'glass' = native iOS look: Liquid Glass tab bar, glass playing bar and sheets */
+  uiStyle: 'classic' | 'glass'
+  /** where Spotify songs play from: the better copy for your quality setting, or a preferred service first */
+  spotifySource: 'auto' | 'youtube' | 'soundcloud'
 }
 
 export const DEFAULT_MOBILE_SETTINGS: MobileSettings = {
@@ -43,6 +47,8 @@ export const DEFAULT_MOBILE_SETTINGS: MobileSettings = {
   accent: '#ff4d5e',
   showLyrics: true,
   hideShortClips: true,
+  uiStyle: 'classic',
+  spotifySource: 'auto',
 }
 
 export const LOUDNESS_LUFS: Record<MobileSettings['loudnessLevel'], number> = { quiet: -23, normal: -14, loud: -11 }

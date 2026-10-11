@@ -65,3 +65,32 @@ appId: com.projectm.app
 - takeScreenshot: 08-diagnostics
 - scroll
 - takeScreenshot: 09-diagnostics-more
+# Liquid Glass interface
+- tapOn:
+    id: "Back"
+- scrollUntilVisible:
+    element: "Themes"
+    direction: UP
+- tapOn: "Themes"
+- tapOn:
+    id: "ui-glass"
+- waitForAnimationToEnd
+- takeScreenshot: 10-themes-glass
+- tapOn:
+    id: "Back"
+- tapOn:
+    id: "Back"
+- waitForAnimationToEnd
+- takeScreenshot: 11-glass-home
+- tapOn:
+    id: "tab-search"
+- waitForAnimationToEnd
+- takeScreenshot: 12-glass-search
+- tapOn:
+    id: "tab-library"
+- waitForAnimationToEnd
+- takeScreenshot: 13-glass-library
+- tapOn:
+    id: "mini-player"
+- waitForAnimationToEnd
+- takeScreenshot: 14-glass-player

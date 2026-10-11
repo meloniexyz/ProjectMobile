@@ -1,4 +1,6 @@
+import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect'
 import { router } from 'expo-router'
+import { useSettings } from '../lib/settings'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Modal, Pressable, ScrollView, Switch, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -36,13 +38,25 @@ export function Toasts() {
 export function Sheet({ visible, onClose, children }: { visible: boolean; onClose: () => void; children: ReactNode }) {
   const c = useColors()
   const insets = useSafeAreaInsets()
+  const glass = useSettings().uiStyle === 'glass' && isLiquidGlassAvailable()
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable accessibilityLabel="Close" style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' }} onPress={onClose} />
-      <View style={{ backgroundColor: c.elev, borderTopLeftRadius: 14, borderTopRightRadius: 14, paddingBottom: insets.bottom + 8, maxHeight: '85%' }}>
-        <View style={{ alignSelf: 'center', width: 38, height: 4, borderRadius: 2, backgroundColor: c.line2, marginVertical: 8 }} />
-        {children}
-      </View>
+      {glass ? (
+        <GlassView
+          glassEffectStyle="regular"
+          colorScheme="dark"
+          style={{ borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingBottom: insets.bottom + 8, maxHeight: '85%', overflow: 'hidden' }}
+        >
+          <View style={{ alignSelf: 'center', width: 38, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.35)', marginVertical: 8 }} />
+          {children}
+        </GlassView>
+      ) : (
+        <View style={{ backgroundColor: c.elev, borderTopLeftRadius: 14, borderTopRightRadius: 14, paddingBottom: insets.bottom + 8, maxHeight: '85%' }}>
+          <View style={{ alignSelf: 'center', width: 38, height: 4, borderRadius: 2, backgroundColor: c.line2, marginVertical: 8 }} />
+          {children}
+        </View>
+      )}
     </Modal>
   )
 }

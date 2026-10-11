@@ -4,7 +4,7 @@ import { Pressable, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { RemotePlaylist, SourceId, Track } from '../../core/types'
 import { useStore } from '../../core/store'
-import { Artwork, Chip, Icon, IconButton, SectionTitle, Txt } from '../../components/ui'
+import { Artwork, Chip, Icon, IconButton, SectionTitle, SourceIcon, Txt } from '../../components/ui'
 import { ACCOUNT_SOURCES, accountStore, fetchers, keys, useList } from '../../lib/accounts'
 import { historyStore, mostPlayed, recentTracks } from '../../lib/history'
 import { libStore } from '../../lib/library'
@@ -77,7 +77,7 @@ function SongRow({ tracks, index }: { tracks: Track[]; index: number }) {
           {t.artist}
         </Txt>
       </View>
-      <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: SOURCES[t.source].color }} />
+      <SourceIcon source={t.source} size={13} />
     </Pressable>
   )
 }
@@ -126,7 +126,7 @@ export default function Home() {
   const [topTab, setTopTab] = useState<'here' | 'spotify'>('here')
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: c.bg }} contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: 40 }}>
+    <ScrollView style={{ flex: 1, backgroundColor: c.bg }} contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: 160 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: ui.pad }}>
         <Txt size={ui.font.title} weight="800" style={{ flex: 1 }}>
           {greeting()}

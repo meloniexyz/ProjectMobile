@@ -5,8 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { fmtTime } from '../core/format'
 import { LyricsCard, SongInfoCard } from '../components/Lyrics'
 import { Slider } from '../components/Slider'
-import { Artwork, Icon, IconButton, Txt } from '../components/ui'
-import { cycleRepeat, next, prev, seek, sourceLabel, toggle, toggleShuffle, usePlayer } from '../lib/player'
+import { Artwork, Icon, IconButton, SourceRoute, Txt } from '../components/ui'
+import { cycleRepeat, next, prev, seek, toggle, toggleShuffle, usePlayer } from '../lib/player'
 import { useSettings } from '../lib/settings'
 import { useGoBack } from '../lib/nav'
 import { useColors, ui } from '../lib/theme'
@@ -50,9 +50,9 @@ export default function PlayerScreen() {
           <Txt tone="text2" size={11} weight="700">
             PLAYING FROM
           </Txt>
-          <Txt size={13} weight="700" lines={1}>
-            {sourceLabel(track, via)}
-          </Txt>
+          <View style={{ marginTop: 3 }}>
+            <SourceRoute source={track.source} via={via} size={14} names />
+          </View>
         </View>
         <IconButton name="ellipsis-horizontal" label="More" onPress={() => openTrackSheet(track)} />
       </View>

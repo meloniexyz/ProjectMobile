@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons'
+import { FontAwesome, Ionicons } from '@expo/vector-icons'
 import { Image } from 'expo-image'
 import { useGoBack } from '../lib/nav'
 import type { ComponentProps, ReactNode } from 'react'
@@ -283,6 +283,42 @@ export function ErrorText({ text, onRetry }: { text: string; onRetry?: () => voi
         {text}
       </Txt>
       {onRetry ? <Button title="Try again" small kind="secondary" onPress={onRetry} /> : null}
+    </View>
+  )
+}
+
+/** The platform's logo in its colour. */
+export function SourceIcon({ source, size = 14 }: { source: SourceId; size?: number }) {
+  const color = SOURCES[source].color
+  if (source === 'spotify') return <FontAwesome name="spotify" size={size} color={color} />
+  if (source === 'youtube') return <FontAwesome name="youtube-play" size={size} color={color} />
+  if (source === 'soundcloud') return <FontAwesome name="soundcloud" size={size * 1.1} color={color} />
+  return <Ionicons name="folder" size={size} color={color} />
+}
+
+/** Where a song is from, and where it's actually playing from: e.g. Spotify → YouTube. */
+export function SourceRoute({ source, via, size = 14, names = false }: { source: SourceId; via?: SourceId | null; size?: number; names?: boolean }) {
+  const c = useColors()
+  const label = (s: SourceId) =>
+    names ? (
+      <Txt size={size - 1} weight="700" tone="text2">
+        {SOURCES[s].short}
+      </Txt>
+    ) : null
+  return (
+    <View
+      accessibilityLabel={via ? `${SOURCES[source].name} song, playing from ${SOURCES[via].name}` : SOURCES[source].name}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}
+    >
+      <SourceIcon source={source} size={size} />
+      {label(source)}
+      {via && via !== source ? (
+        <>
+          <Ionicons name="arrow-forward" size={size - 2} color={c.text3} />
+          <SourceIcon source={via} size={size} />
+          {label(via)}
+        </>
+      ) : null}
     </View>
   )
 }

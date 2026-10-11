@@ -23,7 +23,7 @@ export default function StorageSettings() {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <Header title="Downloads and storage" />
-      <ScrollView contentContainerStyle={{ paddingBottom: 60 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 160 }}>
         <Row
           title="Offline mode"
           sub="Only play downloaded songs (and ones already saved on the phone)"

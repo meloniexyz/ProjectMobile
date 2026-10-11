@@ -1,5 +1,5 @@
 import { FlatList, Pressable, View } from 'react-native'
-import { Artwork, Button, Header, IconButton, Txt } from '../components/ui'
+import { Artwork, Button, Header, IconButton, SourceRoute, Txt } from '../components/ui'
 import { clearUpcoming, jump, removeAt, usePlayer } from '../lib/player'
 import { useColors, ui } from '../lib/theme'
 
@@ -7,6 +7,7 @@ export default function Queue() {
   const c = useColors()
   const queue = usePlayer((s) => s.queue)
   const index = usePlayer((s) => s.index)
+  const via = usePlayer((s) => s.via)
   const upcoming = queue.slice(index + 1).map((q, i) => ({ ...q, at: index + 1 + i }))
   const cur = queue[index]
   return (
@@ -27,9 +28,12 @@ export default function Queue() {
                   <Txt tone="accent" weight="700" lines={1}>
                     {cur.track.title}
                   </Txt>
-                  <Txt tone="text2" size={13} lines={1}>
-                    {cur.track.artist}
-                  </Txt>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <SourceRoute source={cur.track.source} via={via} size={11} />
+                    <Txt tone="text2" size={13} lines={1} style={{ flexShrink: 1 }}>
+                      {cur.track.artist}
+                    </Txt>
+                  </View>
                 </View>
               </View>
               <Txt size={15} weight="800" style={{ marginTop: 18 }}>

@@ -34,7 +34,7 @@ export default function Settings() {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <Header title="Settings" />
-      <ScrollView contentContainerStyle={{ paddingBottom: 60 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 160 }}>
         <Group title="Accounts" />
         {(['spotify', 'youtube', 'soundcloud'] as const).map((id) => (
           <Row
@@ -81,6 +81,23 @@ export default function Settings() {
           </View>
         ) : null}
         <Row title="Equalizer" sub={s.eq.enabled ? `On · ${s.eq.preset}` : 'Off'} icon="stats-chart-outline" onPress={() => router.push('/settings/eq')} chevron />
+        <Row title="Spotify songs play from" sub="Phones can't play Spotify inside other apps, so the same recording plays from here" icon="git-branch-outline" />
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: ui.pad, paddingLeft: 50, paddingBottom: 8 }}>
+          {(
+            [
+              ['auto', 'Best quality'],
+              ['youtube', 'YouTube Music'],
+              ['soundcloud', 'SoundCloud'],
+            ] as const
+          ).map(([id, label]) => (
+            <Chip key={id} label={label} active={s.spotifySource === id} onPress={() => updateSettings({ spotifySource: id })} />
+          ))}
+        </View>
+        <Txt tone="text3" size={12} style={{ paddingLeft: 50, paddingRight: ui.pad, marginBottom: 6 }}>
+          {s.spotifySource === 'auto'
+            ? 'Searches both and picks the better-sounding copy (or the smaller one on Low / Mid quality).'
+            : `Uses ${s.spotifySource === 'youtube' ? 'YouTube Music' : 'SoundCloud'} when it has the song, otherwise the other one.`}
+        </Txt>
         <Row title="Show lyrics" icon="text-outline" right={sw(s.showLyrics, (v) => updateSettings({ showLyrics: v }), 'Show lyrics')} />
 
         <Group title="Display" />

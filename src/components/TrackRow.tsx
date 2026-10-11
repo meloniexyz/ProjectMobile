@@ -6,11 +6,10 @@ import { useStore } from '../core/store'
 import { cacheStore, isDownloaded } from '../lib/audioCache'
 import { availableNow, playTracks, usePlayer } from '../lib/player'
 import { useConnection } from '../lib/net'
-import { SOURCES } from '../lib/sources'
 import { useColors, ui } from '../lib/theme'
 import { openTrackSheet } from '../lib/ui'
 import { useSettings } from '../lib/settings'
-import { Artwork, Icon, IconButton, Txt } from './ui'
+import { Artwork, Icon, IconButton, SourceIcon, Txt } from './ui'
 
 /** Three little bars for the playing song (animated on the GPU: transform only). */
 export function Bars({ playing }: { playing: boolean }) {
@@ -90,7 +89,7 @@ export function TrackRow({
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 }}>
           {downloaded ? <Icon name="arrow-down-circle" size={13} color={c.accent} /> : null}
-          {showSource ? <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: SOURCES[track.source].color }} /> : null}
+          {showSource ? <SourceIcon source={track.source} size={11} /> : null}
           <Txt tone="text2" size={13} lines={1} style={{ flexShrink: 1 }}>
             {track.artist}
             {track.duration ? ` · ${fmtTime(track.duration)}` : ''}
