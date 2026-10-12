@@ -3,14 +3,14 @@
     "name": "ProjectM",
     "slug": "projectm",
     "scheme": "projectm",
-    "version": "1.3.0",
+    "version": "1.3.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#000000",
     "ios": {
       "bundleIdentifier": "com.projectm.app",
-      "buildNumber": "5",
+      "buildNumber": "6",
       "supportsTablet": false,
       "infoPlist": {
         "UIBackgroundModes": [

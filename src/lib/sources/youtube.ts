@@ -334,18 +334,37 @@ class YouTube {
    */
   async plan(id: string, quality: Quality): Promise<StreamPlan> {
     let lastErr: unknown
+    let audioRefused = 0
     for (const method of this.methodOrder()) {
       try {
         const p = await this.planWith(method, id, quality)
+        await this.checkAudio(p)
         if (methodFile.get().method !== method) methodFile.set({ method }, true)
         return p
       } catch (err) {
         lastErr = err
-        // only the bot check (or a stale session) is worth another method; "video unavailable" isn't
-        if (!/confirm you.re not a bot|sign in|403|token/i.test(String((err as Error)?.message ?? err))) throw err
+        const msg = String((err as Error)?.message ?? err)
+        if (/audio HTTP 40[13]/.test(msg)) audioRefused++
+        // only the bot check (or a stale session / refused audio) is worth another method; "video unavailable" isn't
+        if (!/confirm you.re not a bot|sign in|403|401|token/i.test(msg)) throw err
       }
     }
+    // every way in gave a song page but no audio: treat it like the bot check, so SoundCloud plays it
+    if (audioRefused) throw new Error('YouTube refused the audio on every connection (sign in to confirm you are not a bot)')
     throw lastErr
+  }
+
+  /**
+   * YouTube can hand out an audio address that it then refuses (HTTP 403), usually only after the
+   * first megabyte when the playback token isn't accepted. Read a few bytes past that point first.
+   */
+  private async checkAudio(p: StreamPlan) {
+    const u = new URL(p.url)
+    const size = p.bytes ?? 0
+    const from = size > 1_200_000 ? 1_048_576 : 0
+    u.searchParams.set('range', `${from}-${from + 1023}`)
+    const r = await fetch(u.toString())
+    if (r.status === 403 || r.status === 401) throw new Error(`info OK but audio HTTP ${r.status}`)
   }
 
   /** For diagnostics: what YouTube says to each connection method on this phone. */

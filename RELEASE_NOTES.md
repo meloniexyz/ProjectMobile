@@ -1,6 +1,10 @@
 **Install / update:** download the `.ipa` below and install it with [Sideloadly](https://sideloadly.io) using the same Apple ID as before (your data stays). With a free Apple ID, reinstall every 7 days.
 
-**New in 1.3.0**
+**New in 1.3.1**
+- **YouTube songs that failed with "response has status 403" now play:** the app checks YouTube's audio address before using it. If YouTube refuses it, the other connection methods are tried (including your signed-in YouTube account), and if all are refused the song plays from SoundCloud instead of failing.
+- **Playlist sync sign-in fixed:** leaving the app to enter the code on GitHub no longer fails with "The network connection was lost". Syncing also retries when the connection drops for a moment.
+
+**From 1.3.0**
 - **Playlist sync:** Settings → Playlist sync → Connect GitHub. Your ProjectM playlists stay the same on this phone, ProjectM on your PC (1.0.12+) and your other phones, stored in your private `projectm-sync` GitHub repository.
 - **Save to my playlists:** Spotify, YouTube and SoundCloud playlists can be saved as ProjectM playlists, which mix songs from any service (like on PC).
 - **Right version of songs:** Spotify songs now play the explicit version when Spotify's is explicit (clean when it's clean); clean, censored, edited and radio-version copies are skipped. Songs are matched again with the new rules.
