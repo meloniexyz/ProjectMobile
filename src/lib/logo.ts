@@ -53,6 +53,9 @@ const iconName = (color: string, variant: string) =>
     .map((p) => p[0].toUpperCase() + p.slice(1))
     .join('')
 
+/** assets/icon.png: the red M on its surface (AMOLED with the red accent, the default look) */
+const BUILT_IN_ICON = 'CrimsonMarkOnsurface'
+
 /** Keeps the home screen icon in step with the logo (iOS shows a short notice when it changes). */
 export function startAppIconSync() {
   if (!supportsAlternateIcons) return
@@ -60,8 +63,10 @@ export function startAppIconSync() {
   const apply = () => {
     const s = getSettings()
     const name = iconName(logoColor(s.theme, s.accent), s.logo)
-    if (getAppIconName() === name) return
-    setAlternateAppIcon(name as never).catch((e) => console.warn('[icon]', e))
+    // the built-in icon is this one already, so it needs no switch (and no iOS notice)
+    const wanted = name === BUILT_IN_ICON ? null : name
+    if ((getAppIconName() ?? null) === wanted) return
+    setAlternateAppIcon(wanted as never).catch((e) => console.warn('[icon]', e))
   }
   // wait until picking a colour has settled, so iOS asks once
   const later = () => {
