@@ -1,5 +1,7 @@
 import { isLiquidGlassAvailable } from 'expo-glass-effect'
+import { Image } from 'expo-image'
 import { Pressable, ScrollView, View } from 'react-native'
+import { LOGO_VARIANTS, logoColor, logoImage } from '../../lib/logo'
 import { Header, Icon, Txt } from '../../components/ui'
 import { updateSettings, useSettings } from '../../lib/settings'
 import { ACCENT_SWATCHES, THEMES, useColors, ui } from '../../lib/theme'
@@ -75,6 +77,35 @@ export default function Themes() {
               </Pressable>
             )
           })}
+        </View>
+        <View>
+          <Txt size={16} weight="800">
+            Logo
+          </Txt>
+          <Txt tone="text2" size={13} style={{ marginTop: 4 }}>
+            Your home screen icon and the logo in the app. It takes your accent colour (pick it below); iOS shows a short notice when the icon changes.
+          </Txt>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 10 }}>
+            {LOGO_VARIANTS.map((v) => {
+              const on = s.logo === v.id
+              return (
+                <Pressable
+                  key={v.id}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: on }}
+                  accessibilityLabel={`Logo ${v.name}`}
+                  testID={`logo-${v.id}`}
+                  onPress={() => updateSettings({ logo: v.id })}
+                  style={{ width: '31%', alignItems: 'center', gap: 6, paddingVertical: 12, borderRadius: 12, backgroundColor: c.bg3, borderWidth: 2, borderColor: on ? c.accent : 'transparent' }}
+                >
+                  <Image source={logoImage(logoColor(s.theme, s.accent), v.id)} style={{ width: 56, height: 56 }} />
+                  <Txt size={12} tone={on ? 'text' : 'text2'}>
+                    {v.name}
+                  </Txt>
+                </Pressable>
+              )
+            })}
+          </View>
         </View>
         <View>
           <Txt size={16} weight="800">

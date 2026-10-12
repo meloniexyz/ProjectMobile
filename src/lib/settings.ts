@@ -24,6 +24,8 @@ export interface MobileSettings {
   eq: EqSettings
   theme: string
   accent: string | null
+  /** logo style (app icon and in-app logo), in the accent colour: see lib/logo.ts */
+  logo: string
   showLyrics: boolean
   /** hide local audio under 30 s (samples, voice memos) */
   hideShortClips: boolean
@@ -45,6 +47,7 @@ export const DEFAULT_MOBILE_SETTINGS: MobileSettings = {
   eq: { enabled: false, bands: 7, gains: [0, 0, 0, 0, 0, 0, 0], preset: 'Flat', custom: [] },
   theme: 'amoled',
   accent: '#ff4d5e',
+  logo: 'mark-onsurface',
   showLyrics: true,
   hideShortClips: true,
   uiStyle: 'classic',

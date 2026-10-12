@@ -1,4 +1,6 @@
+import { Image } from 'expo-image'
 import { router } from 'expo-router'
+import { useLogo } from '../../lib/logo'
 import { useMemo, useState } from 'react'
 import { Pressable, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -114,6 +116,7 @@ function RemotePlaylistRail({ source }: { source: SourceId }) {
 
 export default function Home() {
   const c = useColors()
+  const logo = useLogo()
   const insets = useSafeAreaInsets()
   useSettings()
   useConnection()
@@ -127,7 +130,8 @@ export default function Home() {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: c.bg }} contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: 160 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: ui.pad }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: ui.pad, gap: 10 }}>
+        <Image source={logo} style={{ width: 30, height: 30 }} accessibilityLabel="ProjectM" />
         <Txt size={ui.font.title} weight="800" style={{ flex: 1 }}>
           {greeting()}
         </Txt>

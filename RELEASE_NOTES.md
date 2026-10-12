@@ -1,6 +1,10 @@
 **Install / update:** download the `.ipa` below and install it with [Sideloadly](https://sideloadly.io) using the same Apple ID as before (your data stays). With a free Apple ID, reinstall every 7 days.
 
-**New in 1.3.1**
+**New in 1.3.2**
+- **New ProjectM logo and app icon.**
+- **Logo styles:** Settings → Themes → Logo. Pick the M or round M on the theme surface, dark, or charcoal, in your accent colour. Your home screen icon changes with it (iOS shows a short "icon changed" notice), and the logo appears on Home and in Settings. Custom accent colours use the closest of the 13 theme colours for the icon.
+
+**From 1.3.1**
 - **YouTube songs that failed with "response has status 403" now play:** the app checks YouTube's audio address before using it. If YouTube refuses it, the other connection methods are tried (including your signed-in YouTube account), and if all are refused the song plays from SoundCloud instead of failing.
 - **Playlist sync sign-in fixed:** leaving the app to enter the code on GitHub no longer fails with "The network connection was lost". Syncing also retries when the connection drops for a moment.
 

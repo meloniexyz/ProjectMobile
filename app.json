@@ -3,14 +3,14 @@
     "name": "ProjectM",
     "slug": "projectm",
     "scheme": "projectm",
-    "version": "1.3.1",
+    "version": "1.3.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#000000",
     "ios": {
       "bundleIdentifier": "com.projectm.app",
-      "buildNumber": "6",
+      "buildNumber": "7",
       "supportsTablet": false,
       "infoPlist": {
         "UIBackgroundModes": [
@@ -46,6 +46,557 @@
           "cameraPermission": false,
           "microphonePermission": false
         }
+      ],
+      [
+        "expo-alternate-app-icons",
+        [
+          {
+            "name": "AmoledAvatarCharcoal",
+            "ios": "./assets/app-icons/amoled_avatar_charcoal.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/amoled_avatar_charcoal.png"
+            }
+          },
+          {
+            "name": "AmoledAvatarDarkm",
+            "ios": "./assets/app-icons/amoled_avatar_darkm.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/amoled_avatar_darkm.png"
+            }
+          },
+          {
+            "name": "AmoledAvatarOnsurface",
+            "ios": "./assets/app-icons/amoled_avatar_onsurface.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/amoled_avatar_onsurface.png"
+            }
+          },
+          {
+            "name": "AmoledMarkCharcoal",
+            "ios": "./assets/app-icons/amoled_mark_charcoal.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/amoled_mark_charcoal.png"
+            }
+          },
+          {
+            "name": "AmoledMarkDarkm",
+            "ios": "./assets/app-icons/amoled_mark_darkm.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/amoled_mark_darkm.png"
+            }
+          },
+          {
+            "name": "AmoledMarkOnsurface",
+            "ios": "./assets/app-icons/amoled_mark_onsurface.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/amoled_mark_onsurface.png"
+            }
+          },
+          {
+            "name": "CrimsonAvatarCharcoal",
+            "ios": "./assets/app-icons/crimson_avatar_charcoal.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/crimson_avatar_charcoal.png"
+            }
+          },
+          {
+            "name": "CrimsonAvatarDarkm",
+            "ios": "./assets/app-icons/crimson_avatar_darkm.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/crimson_avatar_darkm.png"
+            }
+          },
+          {
+            "name": "CrimsonAvatarOnsurface",
+            "ios": "./assets/app-icons/crimson_avatar_onsurface.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/crimson_avatar_onsurface.png"
+            }
+          },
+          {
+            "name": "CrimsonMarkCharcoal",
+            "ios": "./assets/app-icons/crimson_mark_charcoal.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/crimson_mark_charcoal.png"
+            }
+          },
+          {
+            "name": "CrimsonMarkDarkm",
+            "ios": "./assets/app-icons/crimson_mark_darkm.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/crimson_mark_darkm.png"
+            }
+          },
+          {
+            "name": "CrimsonMarkOnsurface",
+            "ios": "./assets/app-icons/crimson_mark_onsurface.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/crimson_mark_onsurface.png"
+            }
+          },
+          {
+            "name": "DraculaAvatarCharcoal",
+            "ios": "./assets/app-icons/dracula_avatar_charcoal.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/dracula_avatar_charcoal.png"
+            }
+          },
+          {
+            "name": "DraculaAvatarDarkm",
+            "ios": "./assets/app-icons/dracula_avatar_darkm.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/dracula_avatar_darkm.png"
+            }
+          },
+          {
+            "name": "DraculaAvatarOnsurface",
+            "ios": "./assets/app-icons/dracula_avatar_onsurface.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/dracula_avatar_onsurface.png"
+            }
+          },
+          {
+            "name": "DraculaMarkCharcoal",
+            "ios": "./assets/app-icons/dracula_mark_charcoal.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/dracula_mark_charcoal.png"
+            }
+          },
+          {
+            "name": "DraculaMarkDarkm",
+            "ios": "./assets/app-icons/dracula_mark_darkm.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/dracula_mark_darkm.png"
+            }
+          },
+          {
+            "name": "DraculaMarkOnsurface",
+            "ios": "./assets/app-icons/dracula_mark_onsurface.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/dracula_mark_onsurface.png"
+            }
+          },
+          {
+            "name": "FeishinAvatarCharcoal",
+            "ios": "./assets/app-icons/feishin_avatar_charcoal.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/feishin_avatar_charcoal.png"
+            }
+          },
+          {
+            "name": "FeishinAvatarDarkm",
+            "ios": "./assets/app-icons/feishin_avatar_darkm.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/feishin_avatar_darkm.png"
+            }
+          },
+          {
+            "name": "FeishinAvatarOnsurface",
+            "ios": "./assets/app-icons/feishin_avatar_onsurface.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/feishin_avatar_onsurface.png"
+            }
+          },
+          {
+            "name": "FeishinMarkCharcoal",
+            "ios": "./assets/app-icons/feishin_mark_charcoal.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/feishin_mark_charcoal.png"
+            }
+          },
+          {
+            "name": "FeishinMarkDarkm",
+            "ios": "./assets/app-icons/feishin_mark_darkm.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/feishin_mark_darkm.png"
+            }
+          },
+          {
+            "name": "FeishinMarkOnsurface",
+            "ios": "./assets/app-icons/feishin_mark_onsurface.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/feishin_mark_onsurface.png"
+            }
+          },
+          {
+            "name": "GoldAvatarCharcoal",
+            "ios": "./assets/app-icons/gold_avatar_charcoal.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/gold_avatar_charcoal.png"
+            }
+          },
+          {
+            "name": "GoldAvatarDarkm",
+            "ios": "./assets/app-icons/gold_avatar_darkm.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/gold_avatar_darkm.png"
+            }
+          },
+          {
+            "name": "GoldAvatarOnsurface",
+            "ios": "./assets/app-icons/gold_avatar_onsurface.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/gold_avatar_onsurface.png"
+            }
+          },
+          {
+            "name": "GoldMarkCharcoal",
+            "ios": "./assets/app-icons/gold_mark_charcoal.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/gold_mark_charcoal.png"
+            }
+          },
+          {
+            "name": "GoldMarkDarkm",
+            "ios": "./assets/app-icons/gold_mark_darkm.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/gold_mark_darkm.png"
+            }
+          },
+          {
+            "name": "GoldMarkOnsurface",
+            "ios": "./assets/app-icons/gold_mark_onsurface.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/gold_mark_onsurface.png"
+            }
+          },
+          {
+            "name": "GraphiteAvatarCharcoal",
+            "ios": "./assets/app-icons/graphite_avatar_charcoal.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/graphite_avatar_charcoal.png"
+            }
+          },
+          {
+            "name": "GraphiteAvatarDarkm",
+            "ios": "./assets/app-icons/graphite_avatar_darkm.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/graphite_avatar_darkm.png"
+            }
+          },
+          {
+            "name": "GraphiteAvatarOnsurface",
+            "ios": "./assets/app-icons/graphite_avatar_onsurface.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/graphite_avatar_onsurface.png"
+            }
+          },
+          {
+            "name": "GraphiteMarkCharcoal",
+            "ios": "./assets/app-icons/graphite_mark_charcoal.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/graphite_mark_charcoal.png"
+            }
+          },
+          {
+            "name": "GraphiteMarkDarkm",
+            "ios": "./assets/app-icons/graphite_mark_darkm.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/graphite_mark_darkm.png"
+            }
+          },
+          {
+            "name": "GraphiteMarkOnsurface",
+            "ios": "./assets/app-icons/graphite_mark_onsurface.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/graphite_mark_onsurface.png"
+            }
+          },
+          {
+            "name": "GreenAvatarCharcoal",
+            "ios": "./assets/app-icons/green_avatar_charcoal.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/green_avatar_charcoal.png"
+            }
+          },
+          {
+            "name": "GreenAvatarDarkm",
+            "ios": "./assets/app-icons/green_avatar_darkm.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/green_avatar_darkm.png"
+            }
+          },
+          {
+            "name": "GreenAvatarOnsurface",
+            "ios": "./assets/app-icons/green_avatar_onsurface.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/green_avatar_onsurface.png"
+            }
+          },
+          {
+            "name": "GreenMarkCharcoal",
+            "ios": "./assets/app-icons/green_mark_charcoal.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/green_mark_charcoal.png"
+            }
+          },
+          {
+            "name": "GreenMarkDarkm",
+            "ios": "./assets/app-icons/green_mark_darkm.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/green_mark_darkm.png"
+            }
+          },
+          {
+            "name": "GreenMarkOnsurface",
+            "ios": "./assets/app-icons/green_mark_onsurface.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/green_mark_onsurface.png"
+            }
+          },
+          {
+            "name": "MidnightAvatarCharcoal",
+            "ios": "./assets/app-icons/midnight_avatar_charcoal.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/midnight_avatar_charcoal.png"
+            }
+          },
+          {
+            "name": "MidnightAvatarDarkm",
+            "ios": "./assets/app-icons/midnight_avatar_darkm.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/midnight_avatar_darkm.png"
+            }
+          },
+          {
+            "name": "MidnightAvatarOnsurface",
+            "ios": "./assets/app-icons/midnight_avatar_onsurface.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/midnight_avatar_onsurface.png"
+            }
+          },
+          {
+            "name": "MidnightMarkCharcoal",
+            "ios": "./assets/app-icons/midnight_mark_charcoal.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/midnight_mark_charcoal.png"
+            }
+          },
+          {
+            "name": "MidnightMarkDarkm",
+            "ios": "./assets/app-icons/midnight_mark_darkm.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/midnight_mark_darkm.png"
+            }
+          },
+          {
+            "name": "MidnightMarkOnsurface",
+            "ios": "./assets/app-icons/midnight_mark_onsurface.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/midnight_mark_onsurface.png"
+            }
+          },
+          {
+            "name": "MintAvatarCharcoal",
+            "ios": "./assets/app-icons/mint_avatar_charcoal.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/mint_avatar_charcoal.png"
+            }
+          },
+          {
+            "name": "MintAvatarDarkm",
+            "ios": "./assets/app-icons/mint_avatar_darkm.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/mint_avatar_darkm.png"
+            }
+          },
+          {
+            "name": "MintAvatarOnsurface",
+            "ios": "./assets/app-icons/mint_avatar_onsurface.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/mint_avatar_onsurface.png"
+            }
+          },
+          {
+            "name": "MintMarkCharcoal",
+            "ios": "./assets/app-icons/mint_mark_charcoal.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/mint_mark_charcoal.png"
+            }
+          },
+          {
+            "name": "MintMarkDarkm",
+            "ios": "./assets/app-icons/mint_mark_darkm.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/mint_mark_darkm.png"
+            }
+          },
+          {
+            "name": "MintMarkOnsurface",
+            "ios": "./assets/app-icons/mint_mark_onsurface.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/mint_mark_onsurface.png"
+            }
+          },
+          {
+            "name": "NordAvatarCharcoal",
+            "ios": "./assets/app-icons/nord_avatar_charcoal.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/nord_avatar_charcoal.png"
+            }
+          },
+          {
+            "name": "NordAvatarDarkm",
+            "ios": "./assets/app-icons/nord_avatar_darkm.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/nord_avatar_darkm.png"
+            }
+          },
+          {
+            "name": "NordAvatarOnsurface",
+            "ios": "./assets/app-icons/nord_avatar_onsurface.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/nord_avatar_onsurface.png"
+            }
+          },
+          {
+            "name": "NordMarkCharcoal",
+            "ios": "./assets/app-icons/nord_mark_charcoal.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/nord_mark_charcoal.png"
+            }
+          },
+          {
+            "name": "NordMarkDarkm",
+            "ios": "./assets/app-icons/nord_mark_darkm.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/nord_mark_darkm.png"
+            }
+          },
+          {
+            "name": "NordMarkOnsurface",
+            "ios": "./assets/app-icons/nord_mark_onsurface.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/nord_mark_onsurface.png"
+            }
+          },
+          {
+            "name": "ProjectmAvatarCharcoal",
+            "ios": "./assets/app-icons/projectm_avatar_charcoal.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/projectm_avatar_charcoal.png"
+            }
+          },
+          {
+            "name": "ProjectmAvatarDarkm",
+            "ios": "./assets/app-icons/projectm_avatar_darkm.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/projectm_avatar_darkm.png"
+            }
+          },
+          {
+            "name": "ProjectmAvatarOnsurface",
+            "ios": "./assets/app-icons/projectm_avatar_onsurface.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/projectm_avatar_onsurface.png"
+            }
+          },
+          {
+            "name": "ProjectmMarkCharcoal",
+            "ios": "./assets/app-icons/projectm_mark_charcoal.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/projectm_mark_charcoal.png"
+            }
+          },
+          {
+            "name": "ProjectmMarkDarkm",
+            "ios": "./assets/app-icons/projectm_mark_darkm.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/projectm_mark_darkm.png"
+            }
+          },
+          {
+            "name": "ProjectmMarkOnsurface",
+            "ios": "./assets/app-icons/projectm_mark_onsurface.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/projectm_mark_onsurface.png"
+            }
+          },
+          {
+            "name": "RoseAvatarCharcoal",
+            "ios": "./assets/app-icons/rose_avatar_charcoal.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/rose_avatar_charcoal.png"
+            }
+          },
+          {
+            "name": "RoseAvatarDarkm",
+            "ios": "./assets/app-icons/rose_avatar_darkm.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/rose_avatar_darkm.png"
+            }
+          },
+          {
+            "name": "RoseAvatarOnsurface",
+            "ios": "./assets/app-icons/rose_avatar_onsurface.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/rose_avatar_onsurface.png"
+            }
+          },
+          {
+            "name": "RoseMarkCharcoal",
+            "ios": "./assets/app-icons/rose_mark_charcoal.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/rose_mark_charcoal.png"
+            }
+          },
+          {
+            "name": "RoseMarkDarkm",
+            "ios": "./assets/app-icons/rose_mark_darkm.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/rose_mark_darkm.png"
+            }
+          },
+          {
+            "name": "RoseMarkOnsurface",
+            "ios": "./assets/app-icons/rose_mark_onsurface.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/rose_mark_onsurface.png"
+            }
+          },
+          {
+            "name": "SunsetAvatarCharcoal",
+            "ios": "./assets/app-icons/sunset_avatar_charcoal.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/sunset_avatar_charcoal.png"
+            }
+          },
+          {
+            "name": "SunsetAvatarDarkm",
+            "ios": "./assets/app-icons/sunset_avatar_darkm.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/sunset_avatar_darkm.png"
+            }
+          },
+          {
+            "name": "SunsetAvatarOnsurface",
+            "ios": "./assets/app-icons/sunset_avatar_onsurface.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/sunset_avatar_onsurface.png"
+            }
+          },
+          {
+            "name": "SunsetMarkCharcoal",
+            "ios": "./assets/app-icons/sunset_mark_charcoal.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/sunset_mark_charcoal.png"
+            }
+          },
+          {
+            "name": "SunsetMarkDarkm",
+            "ios": "./assets/app-icons/sunset_mark_darkm.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/sunset_mark_darkm.png"
+            }
+          },
+          {
+            "name": "SunsetMarkOnsurface",
+            "ios": "./assets/app-icons/sunset_mark_onsurface.png",
+            "android": {
+              "foregroundImage": "./assets/app-icons/sunset_mark_onsurface.png"
+            }
+          }
+        ]
       ]
     ]
   }

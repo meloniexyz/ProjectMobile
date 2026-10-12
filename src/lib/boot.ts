@@ -8,6 +8,7 @@ import { initSettings } from './settings'
 import { youtube } from './sources'
 import { ensureDirs } from './storage'
 import { initSync } from './sync'
+import { startAppIconSync } from './logo'
 
 let booted = false
 
@@ -24,6 +25,7 @@ export function boot() {
   initDownloads()
   startPlayer()
   initSync()
+  startAppIconSync()
   // get YouTube's playback token while the app is in front (it lasts hours)
   setTimeout(() => youtube.warmUp(), 1500)
 }

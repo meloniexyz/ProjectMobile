@@ -4,6 +4,8 @@ import { Alert, ScrollView, Switch, View } from 'react-native'
 import { useStore } from '../../core/store'
 import { Chip, Divider, Header, Row, Txt } from '../../components/ui'
 import { syncStore } from '../../lib/sync'
+import { useLogo } from '../../lib/logo'
+import { Image } from 'expo-image'
 import { accountStore } from '../../lib/accounts'
 import { clearHistory } from '../../lib/history'
 import { refreshLocalVisibility } from '../../lib/library'
@@ -130,7 +132,7 @@ export default function Settings() {
         />
 
         <Group title="About" />
-        <Row title="ProjectM for iPhone" sub={`Version ${Constants.expoConfig?.version ?? '1.0.0'}`} icon="information-circle-outline" />
+        <AboutRow />
         <Divider />
         <Row title="Diagnostics" sub="Check that every source works on this phone" icon="medkit-outline" onPress={() => router.push('/settings/diagnostics')} chevron testID="settings-diagnostics" />
       </ScrollView>
@@ -147,6 +149,17 @@ function SyncSettingsRow() {
       icon="sync-outline"
       onPress={() => router.push('/settings/sync')}
       chevron
+    />
+  )
+}
+
+function AboutRow() {
+  const logo = useLogo()
+  return (
+    <Row
+      title="ProjectM for iPhone"
+      sub={`Version ${Constants.expoConfig?.version ?? '1.0.0'}`}
+      left={<Image source={logo} style={{ width: 28, height: 28, marginHorizontal: 2 }} />}
     />
   )
 }
