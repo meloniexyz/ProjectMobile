@@ -144,11 +144,12 @@ function SyncSettingsRow() {
   const st = useStore(syncStore, (x) => x)
   return (
     <Row
-      title="Playlist sync"
-      sub={st.error ? `Couldn't sync: ${st.error}` : st.connected ? `On · ${st.account ?? 'GitHub'}` : 'Same playlists on your PC and phones'}
-      icon="sync-outline"
-      onPress={() => router.push('/settings/sync')}
+      title="ProjectM account"
+      sub={st.error ? `Couldn't sync: ${st.error}` : st.loggedIn ? `${st.email} · synced` : 'Log in to get your playlists on every device'}
+      icon="person-circle-outline"
+      onPress={() => router.push('/settings/account')}
       chevron
+      testID="settings-account"
     />
   )
 }

@@ -100,7 +100,12 @@ jobs:
           echo "LOGPID=$!" >> $GITHUB_ENV
           DATA=$(xcrun simctl get_app_container "$UDID" com.projectm.app data)
           mkdir -p "$DATA/Documents/.projectm"
-          touch "$DATA/Documents/.projectm/run-diagnostics"
+          # "the PC": a test account made with the same account code ProjectM uses on Windows
+          npx --yes esbuild@0.25.10 scripts/cross-account.ts --bundle --platform=node --format=esm --outfile=/tmp/cross.mjs --log-level=warning
+          CROSS=$(node /tmp/cross.mjs setup) || CROSS=''
+          if [ -z "$CROSS" ]; then echo "CROSS_FAILED=1" >> $GITHUB_ENV; fi
+          echo "CROSS_ACCOUNT=$CROSS" >> $GITHUB_ENV
+          printf '%s' "$CROSS" > "$DATA/Documents/.projectm/run-diagnostics"
           xcrun simctl launch "$UDID" com.projectm.app
           sleep 20
           xcrun simctl io "$UDID" screenshot e2e-out/00-launch.png
@@ -115,6 +120,11 @@ jobs:
           else
             echo "DIAG_MISSING=1" >> $GITHUB_ENV
             echo "diagnostics did not finish"
+          fi
+      - name: PC <-> iPhone account check
+        run: |
+          if [ -n "$CROSS_ACCOUNT" ]; then
+            node /tmp/cross.mjs verify "$CROSS_ACCOUNT" || echo "CROSS_FAILED=1" >> $GITHUB_ENV
           fi
       - name: UI test (Maestro)
         env:
@@ -140,9 +150,9 @@ jobs:
             xcodebuild.log
           retention-days: 7
       - name: Fail if a test failed
-        if: env.E2E_FAILED == '1' || env.DIAG_MISSING == '1'
+        if: env.E2E_FAILED == '1' || env.DIAG_MISSING == '1' || env.CROSS_FAILED == '1'
         run: |
-          echo "E2E_FAILED=$E2E_FAILED DIAG_MISSING=$DIAG_MISSING"
+          echo "E2E_FAILED=$E2E_FAILED DIAG_MISSING=$DIAG_MISSING CROSS_FAILED=$CROSS_FAILED"
           exit 1
       - name: Fail if diagnostics found problems
         run: node -e "const d=require('./e2e-out/diagnostics.json'); console.log(d.passed+'/'+d.total); process.exit(d.passed===d.total?0:1)"

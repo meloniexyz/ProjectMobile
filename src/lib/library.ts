@@ -286,6 +286,14 @@ export function deletePlaylist(id: string) {
   commit(libStore.get().playlists.filter((p) => p.id !== id))
 }
 
+/** Saves a playlist cover that came from another device; returns its file address. */
+export function saveCoverBytes(bytes: Uint8Array, type: string) {
+  const ext = type.includes('png') ? 'png' : type.includes('webp') ? 'webp' : 'jpg'
+  const dest = new File(coversDir, `cover-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}.${ext}`)
+  dest.write(bytes)
+  return dest.uri
+}
+
 /** Pick a photo for a playlist cover; returns its file address. */
 export async function pickCover(): Promise<string | null> {
   const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 })

@@ -4,6 +4,25 @@ appId: com.projectm.app
 ---
 - launchApp:
     clearState: true
+# first launch asks to log in to a ProjectM account: check the form, then skip it
+- extendedWaitUntil:
+    visible:
+      id: "Create an account"
+    timeout: 90000
+- takeScreenshot: 00-account-prompt
+- tapOn:
+    id: "Create an account"
+- tapOn:
+    id: "account-email"
+- inputText: "e2e@example.com"
+- tapOn:
+    id: "account-password"
+- inputText: "short"
+- assertVisible: "At least 8 characters"
+- hideKeyboard
+- takeScreenshot: 00-account-signup
+- tapOn:
+    id: "Back"
 - extendedWaitUntil:
     visible:
       id: "tab-search"

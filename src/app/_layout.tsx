@@ -12,6 +12,7 @@ import { SaveSheet, Toasts, TrackSheet } from '../components/Overlays'
 import { boot } from '../lib/boot'
 import { BotGuardHost } from '../lib/sources/botguard'
 import { dataDir } from '../lib/storage'
+import { syncStore } from '../lib/sync'
 import { useColors } from '../lib/theme'
 
 SplashScreen.preventAutoHideAsync().catch(() => {})
@@ -30,9 +31,26 @@ export default function RootLayout() {
     // automated test hook: the CI drops this file into the app's data folder before launch
     const trigger = new File(dataDir, 'run-diagnostics')
     if (trigger.exists) {
+      // may carry a test account made by the CI with the PC's account code
+      let cross: { email?: string; password?: string } = {}
+      try {
+        cross = JSON.parse(trigger.textSync() || '{}')
+      } catch {
+        // plain trigger
+      }
       trigger.delete()
-      setTimeout(() => router.push({ pathname: '/settings/diagnostics', params: { run: '1' } }), 1500)
+      const params = { run: '1', ...(cross.email && cross.password ? { crossEmail: cross.email, crossPassword: cross.password } : {}) }
+      setTimeout(() => router.push({ pathname: '/settings/diagnostics', params }), 1500)
+      return
     }
+    // first launch: offer to log in or create a ProjectM account, once (Back skips it)
+    const asked = new File(dataDir, 'account-asked')
+    if (asked.exists) return
+    const t = setTimeout(() => {
+      asked.create({ overwrite: true })
+      if (!syncStore.get().loggedIn) router.push('/settings/account')
+    }, 1200)
+    return () => clearTimeout(t)
   }, [])
   return (
     <SafeAreaProvider>

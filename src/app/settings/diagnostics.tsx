@@ -1,4 +1,8 @@
 import { fromBase64, mergePlaylists, toBase64 } from '../../core/sync'
+import * as account from '../../core/account'
+import { passwordKeys, toB64 } from '../../core/keys'
+import { createPlaylist, getPlaylists } from '../../lib/library'
+import * as accountSync from '../../lib/sync'
 import { File } from 'expo-file-system'
 import { useLocalSearchParams } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
@@ -29,7 +33,13 @@ interface Result {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 /** Self-test of everything that talks to the outside world or the audio engine. */
-async function runAll(report: (r: Result) => void) {
+/** CI only: an account the CI made with ProjectM's PC account code, to check the real app syncs with it. */
+interface CrossCheck {
+  email: string
+  password: string
+}
+
+async function runAll(report: (r: Result) => void, cross?: CrossCheck) {
   const run = async (name: string, fn: () => Promise<string>) => {
     const t0 = Date.now()
     try {
@@ -200,6 +210,49 @@ async function runAll(report: (r: Result) => void) {
     return 'newest edit wins, deletions and new playlists carried over'
   })
 
+  await run('Account keys speed (310k rounds)', async () => {
+    const t0 = Date.now()
+    await passwordKeys('timing check', toB64(crypto.getRandomValues(new Uint8Array(16))), 310_000)
+    const ms = Date.now() - t0
+    if (ms > 8000) throw new Error(`${ms} ms: too slow for logging in`)
+    return `${ms} ms per password (once per log in)`
+  })
+
+  await run('ProjectM account (throwaway, then deleted)', async () => {
+    // talks to the server directly; this phone's own login is not touched
+    const email = `diag-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@example.com`
+    const dev = (n: string) => ({ id: `diag-${n}-${Math.random().toString(36).slice(2, 10)}`, name: `Diagnostics ${n}`, platform: 'ios' as const })
+    const { session: a } = await account.signUp(email, 'diagnostics-pass', dev('a'))
+    try {
+      const b = await account.logIn(email, 'diagnostics-pass', dev('b'))
+      if (b.accountKey !== a.accountKey) throw new Error('second device got a different key')
+      const t = { uid: 'spotify:diag', source: 'spotify', id: 'diag', title: 'Şarkı 😀', artist: 'a', album: 'b', duration: 1 } as const
+      const cover = await account.uploadCover(a, new Uint8Array([0xff, 0xd8, 0xff, 1, 2, 3]), 'image/jpeg')
+      await account.syncPlaylists(a, () => ({ playlists: [{ id: 'diag-a', name: 'A', tracks: [t], createdAt: 1, updatedAt: Date.now(), cover }], deleted: {} }))
+      const r = await account.syncPlaylists(b, () => ({ playlists: [], deleted: {} }))
+      const got = r.playlists.find((p) => p.id === 'diag-a')
+      if (!got || got.tracks[0]?.title !== t.title) throw new Error('playlist did not reach the second device')
+      const back = await account.downloadCover(b, got.cover ?? '')
+      if (back?.bytes.length !== 6) throw new Error('cover did not reach the second device')
+      return 'sign up, log in on a 2nd device, playlist + cover synced, account deleted'
+    } finally {
+      await account.deleteAccount(a, 'diagnostics-pass').catch(() => {})
+    }
+  })
+
+  if (cross) {
+    await run('Same account as the PC (CI)', async () => {
+      // the real app flow: log in, receive the PC's playlist, send one back
+      await accountSync.logIn(cross.email, cross.password)
+      for (let i = 0; i < 20 && !getPlaylists().some((p) => p.name === 'From PC (CI)'); i++) await sleep(500)
+      if (!getPlaylists().some((p) => p.name === 'From PC (CI)')) throw new Error("the PC's playlist didn't arrive")
+      createPlaylist([], 'From iPhone (CI)')
+      await accountSync.syncNow()
+      await accountSync.logOut()
+      return "got the PC's playlist and sent one back"
+    })
+  }
+
   await run('Equalizer solver', async () => {
     const bass = PRESETS.find((p) => /bass/i.test(p.name)) ?? PRESETS[1]
     const t0 = Date.now()
@@ -217,7 +270,7 @@ async function runAll(report: (r: Result) => void) {
 
 export default function Diagnostics() {
   const c = useColors()
-  const params = useLocalSearchParams<{ run?: string }>()
+  const params = useLocalSearchParams<{ run?: string; crossEmail?: string; crossPassword?: string }>()
   const [results, setResults] = useState<Result[]>([])
   const [running, setRunning] = useState(false)
   const started = useRef(false)
@@ -226,11 +279,12 @@ export default function Diagnostics() {
     setRunning(true)
     setResults([])
     const all: Result[] = []
+    const cross = params.crossEmail && params.crossPassword ? { email: params.crossEmail, password: params.crossPassword } : undefined
     await runAll((r) => {
       all.push(r)
       console.log(`[diag] ${r.ok ? 'PASS' : 'FAIL'} ${r.name} (${r.ms} ms): ${r.detail}`)
       setResults([...all])
-    })
+    }, cross)
     const passed = all.filter((r) => r.ok).length
     console.log(`[diag] DONE ${passed}/${all.length}`)
     try {
