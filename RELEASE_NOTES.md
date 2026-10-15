@@ -1,6 +1,14 @@
 **Install / update:** download the `.ipa` below and install it with [Sideloadly](https://sideloadly.io) using the same Apple ID as before (your data stays). With a free Apple ID, reinstall every 7 days.
 
-**New in 1.3.2**
+**New in 1.4.0: ProjectM accounts.** Log in on any iPhone or PC (ProjectM 1.1.0+) and your playlists are there.
+- **First launch:** ProjectM asks you to log in or create a free account. You can also do it any time in Settings → ProjectM account.
+- **What syncs:** your ProjectM playlists (mixed Spotify/YouTube/SoundCloud/local songs) and covers you picked from your photos, a few seconds after a change, when you open the app and every 2 minutes.
+- **Devices:** see every PC and iPhone on your account, and log out one you don't use any more.
+- **Your password never leaves your phone.** It's turned into keys on the phone; the server can't read it.
+- **Forgot your password?** Set a new one from any device that's still logged in (no old password needed), use your recovery code, or ask the server owner to allow a reset.
+- **Replaces GitHub playlist sync:** after you log in, your playlists move to your account and the old GitHub sign-in is removed.
+
+**From 1.3.2**
 - **New ProjectM logo and app icon.**
 - **Logo styles:** Settings → Themes → Logo. Pick the M or round M on the theme surface, dark, or charcoal, in your accent colour. Your home screen icon changes with it (iOS shows a short "icon changed" notice), and the logo appears on Home and in Settings. Custom accent colours use the closest of the 13 theme colours for the icon.
 
