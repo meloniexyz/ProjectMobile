@@ -19,7 +19,7 @@ appId: com.projectm.app
     id: "account-password"
 - inputText: "short"
 - assertVisible: "At least 8 characters"
-- hideKeyboard
+# (no hideKeyboard: iOS password fields don't offer it to the test tool; Back works with it open)
 - takeScreenshot: 00-account-signup
 - tapOn:
     id: "Back"
