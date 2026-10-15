@@ -1,3 +1,4 @@
+import CommonCrypto
 import ExpoModulesCore
 
 struct TrackRecord: Record {
@@ -74,6 +75,28 @@ public final class ProjectMAudioModule: Module {
 
     AsyncFunction("setLevel") { (normalize: Bool, offsetDb: Double) async in
       await self.player().setLevel(normalize: normalize, offsetDb: offsetDb)
+    }
+
+    // ProjectM accounts: password -> keys. CommonCrypto is ~50x faster than doing it in JavaScript.
+    AsyncFunction("pbkdf2Sha256") { (password: String, salt: String, iterations: Int, length: Int) throws -> String in
+      guard let pw = Data(base64Encoded: password), let saltData = Data(base64Encoded: salt) else {
+        throw Exception(name: "BadInput", description: "password and salt must be base64")
+      }
+      var out = Data(count: length)
+      let status = out.withUnsafeMutableBytes { outPtr in
+        saltData.withUnsafeBytes { saltPtr in
+          pw.withUnsafeBytes { pwPtr in
+            CCKeyDerivationPBKDF(
+              CCPBKDFAlgorithm(kCCPBKDF2),
+              pwPtr.baseAddress?.assumingMemoryBound(to: Int8.self), pw.count,
+              saltPtr.baseAddress?.assumingMemoryBound(to: UInt8.self), saltData.count,
+              CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA256), UInt32(iterations),
+              outPtr.baseAddress?.assumingMemoryBound(to: UInt8.self), length)
+          }
+        }
+      }
+      if status != Int32(kCCSuccess) { throw Exception(name: "Pbkdf2Failed", description: "PBKDF2 failed (\(status))") }
+      return out.base64EncodedString()
     }
 
     AsyncFunction("holdSilence") { (on: Bool) async in

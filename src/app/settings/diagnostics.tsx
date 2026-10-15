@@ -1,6 +1,8 @@
 import { fromBase64, mergePlaylists, toBase64 } from '../../core/sync'
 import * as account from '../../core/account'
-import { passwordKeys, toB64 } from '../../core/keys'
+import { passwordKeys, setPbkdf2, toB64 } from '../../core/keys'
+import { pbkdf2Async } from '@noble/hashes/pbkdf2.js'
+import { sha256 } from '@noble/hashes/sha2.js'
 import { createPlaylist, getPlaylists } from '../../lib/library'
 import * as accountSync from '../../lib/sync'
 import { File } from 'expo-file-system'
@@ -211,10 +213,17 @@ async function runAll(report: (r: Result) => void, cross?: CrossCheck) {
   })
 
   await run('Account keys speed (310k rounds)', async () => {
+    // native and JavaScript PBKDF2 must agree, or logins from PC and phone wouldn't match
+    const salt = toB64(crypto.getRandomValues(new Uint8Array(16)))
+    const native = await passwordKeys('same on every device ş', salt, 2000)
+    setPbkdf2((pw, s, c, dkLen) => pbkdf2Async(sha256, pw, s, { c, dkLen }))
+    const js = await passwordKeys('same on every device ş', salt, 2000)
+    accountSync.enableNativeKeys()
+    if (native.loginKey !== js.loginKey) throw new Error('native PBKDF2 gives a different key than the PC')
     const t0 = Date.now()
     await passwordKeys('timing check', toB64(crypto.getRandomValues(new Uint8Array(16))), 310_000)
     const ms = Date.now() - t0
-    if (ms > 8000) throw new Error(`${ms} ms: too slow for logging in`)
+    if (ms > 3000) throw new Error(`${ms} ms: too slow for logging in`)
     return `${ms} ms per password (once per log in)`
   })
 

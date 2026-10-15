@@ -4,6 +4,8 @@ import { fetch as expoFetch } from 'expo/fetch'
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator'
 import { AppState } from 'react-native'
 import * as account from '../core/account'
+import { fromB64, setPbkdf2, toB64 } from '../core/keys'
+import { hasNativeAudio, NativeAudio } from '../../modules/projectm-audio'
 import type { AccountDevice, AccountSession, DeviceInfo } from '../core/account'
 import { createStore } from '../core/store'
 import { mergePlaylists, type SyncDoc } from '../core/sync'
@@ -40,8 +42,14 @@ let timer: ReturnType<typeof setTimeout> | null = null
 
 const set = (patch: Partial<ProjectMAccountStatus>) => syncStore.set(patch)
 
+/** iOS's own PBKDF2: in JavaScript a password takes ~30 s on a phone, natively well under one. */
+export function enableNativeKeys() {
+  if (hasNativeAudio) setPbkdf2(async (pw, salt, iterations, length) => fromB64(await NativeAudio.pbkdf2Sha256(toB64(pw), toB64(salt), iterations, length)))
+}
+
 export function initSync() {
   account.setAccountFetch(expoFetch as unknown as typeof fetch)
+  enableNativeKeys()
   const raw = secrets.get(SESSION)
   if (raw) {
     try {

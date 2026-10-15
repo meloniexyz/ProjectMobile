@@ -49,6 +49,8 @@ export interface ProjectMAudioModule {
   holdSilence(on: boolean): Promise<void>
   getState(): Promise<NativeState & { queued?: number }>
   measureLoudness(uri: string): Promise<number | null>
+  /** PBKDF2-HMAC-SHA256 in CommonCrypto (base64 in, base64 out), for ProjectM account keys */
+  pbkdf2Sha256(password: string, salt: string, iterations: number, length: number): Promise<string>
   addListener<K extends keyof AudioEvents>(event: K, listener: AudioEvents[K]): EventSubscription
 }
 
@@ -120,6 +122,9 @@ function webFallback(): ProjectMAudioModule {
     },
     async measureLoudness() {
       return null
+    },
+    async pbkdf2Sha256() {
+      throw new Error('native PBKDF2 needs the iPhone app')
     },
     addListener(event, listener) {
       const map = listeners as Record<string, Set<unknown> | undefined>

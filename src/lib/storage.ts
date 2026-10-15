@@ -68,9 +68,13 @@ export class JsonFile<T> {
   }
 }
 
+/** builds without keychain access (unsigned simulator builds in CI) keep secrets in memory only */
+const memorySecrets = new Map<string, string>()
+
 /** Login tokens, in the iOS keychain. */
 export const secrets = {
   get(key: string): string | null {
+    if (memorySecrets.has(key)) return memorySecrets.get(key)!
     try {
       return SecureStore.getItem(key)
     } catch {
@@ -78,8 +82,16 @@ export const secrets = {
     }
   },
   async set(key: string, value: string | null | undefined) {
-    if (value) await SecureStore.setItemAsync(key, value, { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK })
-    else await SecureStore.deleteItemAsync(key).catch(() => {})
+    try {
+      if (value) await SecureStore.setItemAsync(key, value, { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK })
+      else await SecureStore.deleteItemAsync(key).catch(() => {})
+      memorySecrets.delete(key)
+    } catch (e) {
+      // no keychain entitlement: keep it for this run only rather than failing the sign-in
+      if (!/entitlement/i.test(String((e as Error)?.message ?? e))) throw e
+      if (value) memorySecrets.set(key, value)
+      else memorySecrets.delete(key)
+    }
   },
 }
 
