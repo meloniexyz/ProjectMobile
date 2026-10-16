@@ -1,6 +1,15 @@
 **Install / update:** download the `.ipa` below and install it with [Sideloadly](https://sideloadly.io) using the same Apple ID as before (your data stays). With a free Apple ID, reinstall every 7 days.
 
-**New in 1.4.0: ProjectM accounts.** Log in on any iPhone or PC (ProjectM 1.1.0+) and your playlists are there.
+**New in 1.5.0: everything follows your ProjectM account** (with ProjectM 1.2.0 on Windows)
+- **Look, sound and quality:** theme, accent, logo, style, equalizer, loudness, volume leveling and your Wi-Fi / mobile data / download quality. A newly logged-in phone takes on your account's settings.
+- **Listening history:** plays from every device in one History, "Jump back in" and "Most played".
+- **YouTube Music and SoundCloud sign-ins** come with your account, encrypted on the device; logging out removes them. Spotify gets your Client ID, so connecting is one tap.
+- **Your own songs:** local songs in synced playlists arrive from your other devices (on Wi-Fi unless "download on mobile data" is on) and are deleted from the server once every device has them.
+- **Search tabs:** Songs, Artists, Playlists and Profiles, for one platform or **All**.
+- **New releases on Home**, only from the people you follow on Spotify, SoundCloud and YouTube (music only, Spotify first). Songs over 8 minutes are skipped; change it in Settings → Display.
+- **Spotify:** reconnect once so ProjectM can see the artists you follow.
+
+**From 1.4.0: ProjectM accounts.** Log in on any iPhone or PC (ProjectM 1.1.0+) and your playlists are there.
 - **First launch:** ProjectM asks you to log in or create a free account. You can also do it any time in Settings → ProjectM account.
 - **What syncs:** your ProjectM playlists (mixed Spotify/YouTube/SoundCloud/local songs) and covers you picked from your photos, a few seconds after a change, when you open the app and every 2 minutes.
 - **Devices:** see every PC and iPhone on your account, and log out one you don't use any more.
