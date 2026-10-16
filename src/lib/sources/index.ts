@@ -1,4 +1,4 @@
-import type { SourceId, Track } from '../../core/types'
+import type { Entity, EntityKind, EntityPage, SourceId, Track } from '../../core/types'
 import { getSettings, type Quality } from '../settings'
 import { JsonFile } from '../storage'
 import { soundcloud } from './soundcloud'
@@ -151,4 +151,55 @@ export function cleanError(err: unknown): Error {
   const e = err instanceof Error ? err : new Error(String(err))
   e.message = e.message.replace(/^(\w*Error: )+/, '')
   return e
+}
+
+// ---------- search tabs and new releases ----------
+
+/** Search tabs besides Songs. Spotify has no profile search; SoundCloud's artists are its profiles. */
+export const ENTITY_TABS: { kind: EntityKind; label: string; sources: SourceId[] }[] = [
+  { kind: 'artist', label: 'Artists', sources: ['spotify', 'youtube'] },
+  { kind: 'playlist', label: 'Playlists', sources: ['spotify', 'youtube', 'soundcloud'] },
+  { kind: 'profile', label: 'Profiles', sources: ['soundcloud', 'youtube'] },
+]
+
+const entitySources = { spotify, youtube, soundcloud } as const
+
+export function searchEntities(source: SourceId, query: string, kind: EntityKind): Promise<Entity[]> {
+  const s = entitySources[source as keyof typeof entitySources]
+  return s ? s.searchEntities(query, kind) : Promise.resolve([])
+}
+
+export function entityPage(e: Entity): Promise<EntityPage> {
+  // a single song or video from new releases carries its own track
+  if (e.tracks?.length) return Promise.resolve({ tracks: e.tracks, playlists: [] })
+  const s = entitySources[e.source as keyof typeof entitySources]
+  if (!s) return Promise.reject(new Error(`${e.source} can't open this`))
+  return s.entityPage(e)
+}
+
+/** New releases from the people you follow on each connected platform; kept for 3 hours. */
+let releases: { at: number; max: number; list: Promise<{ items: Entity[]; problems: string[] }> } | null = null
+export function newReleases(maxMinutes: number, force = false) {
+  const max = maxMinutes * 60
+  if (!releases || force || releases.max !== max || Date.now() - releases.at > 3 * 3600_000) {
+    releases = {
+      at: Date.now(),
+      max,
+      list: (async () => {
+        const problems: string[] = []
+        const lists = await Promise.all(
+          (['spotify', 'youtube', 'soundcloud'] as const).map((id) =>
+            // each source returns nothing when you are not signed in there
+            entitySources[id].newReleases(max).catch((e: Error) => {
+              console.warn('[new releases]', id, e)
+              if (id === 'spotify' && /403|forbidden|scope|insufficient/i.test(e.message)) problems.push('spotify-permission')
+              return [] as Entity[]
+            }),
+          ),
+        )
+        return { items: lists.flat().sort((a, b) => (b.releasedAt ?? 0) - (a.releasedAt ?? 0)), problems }
+      })(),
+    }
+  }
+  return releases.list
 }

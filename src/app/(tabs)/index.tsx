@@ -1,12 +1,15 @@
 import { Image } from 'expo-image'
 import { router } from 'expo-router'
 import { useLogo } from '../../lib/logo'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Pressable, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { RemotePlaylist, SourceId, Track } from '../../core/types'
 import { useStore } from '../../core/store'
 import { Artwork, Chip, Icon, IconButton, SectionTitle, SourceIcon, Txt } from '../../components/ui'
+import { EntityTile } from '../../components/EntityList'
+import { newReleases } from '../../lib/sources'
+import type { Entity } from '../../core/types'
 import { ACCOUNT_SOURCES, accountStore, fetchers, keys, useList } from '../../lib/accounts'
 import { historyStore, mostPlayed, recentTracks } from '../../lib/history'
 import { libStore } from '../../lib/library'
@@ -172,6 +175,8 @@ export default function Home() {
         </>
       )}
 
+      <NewReleases />
+
       {connected.length ? (
         <>
           <SectionTitle title="Liked Songs" />
@@ -219,5 +224,40 @@ export default function Home() {
         </>
       )}
     </ScrollView>
+  )
+}
+
+/** New songs, albums and videos from the people you follow on Spotify, YouTube and SoundCloud. */
+function NewReleases() {
+  const maxMinutes = useSettings().newReleasesMaxMinutes
+  const connectedKey = useStore(accountStore, (s) => ACCOUNT_SOURCES.map((a) => `${a}:${!!s.accounts[a]?.connected}`).join(','))
+  const [data, setData] = useState<{ items: Entity[]; problems: string[] } | null>(null)
+  useEffect(() => {
+    let live = true
+    newReleases(maxMinutes).then(
+      (r) => live && setData(r),
+      () => live && setData({ items: [], problems: [] }),
+    )
+    return () => {
+      live = false
+    }
+  }, [maxMinutes, connectedKey])
+  if (!data || (!data.items.length && !data.problems.length)) return null
+  return (
+    <>
+      <SectionTitle title="New releases" />
+      {data.problems.includes('spotify-permission') ? (
+        <Pressable onPress={() => router.push({ pathname: '/settings/accounts', params: { focus: 'spotify' } })}>
+          <Txt tone="text2" size={13} style={{ paddingHorizontal: ui.pad, marginBottom: 8 }}>
+            Spotify needs one more permission to see the artists you follow. Tap to reconnect Spotify.
+          </Txt>
+        </Pressable>
+      ) : null}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingHorizontal: ui.pad }}>
+        {data.items.map((e) => (
+          <EntityTile key={`${e.source}:${e.id}`} entity={e} />
+        ))}
+      </ScrollView>
+    </>
   )
 }

@@ -2,7 +2,8 @@ import { useLocalSearchParams } from 'expo-router'
 import { useEffect, useMemo, useState } from 'react'
 import { ScrollView, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import type { SourceId, Track } from '../../core/types'
+import type { EntityKind, SourceId, Track } from '../../core/types'
+import { EntityResults } from '../../components/EntityList'
 import { norm } from '../../core/format'
 import { useStore } from '../../core/store'
 import { TrackList } from '../../components/TrackRow'
@@ -10,7 +11,7 @@ import { Chip, Empty, ErrorText, Icon, IconButton, Spinner, Txt } from '../../co
 import { accountStore } from '../../lib/accounts'
 import { libStore } from '../../lib/library'
 import { canStream, useConnection } from '../../lib/net'
-import { cleanError, search, SOURCES } from '../../lib/sources'
+import { cleanError, ENTITY_TABS, search, SOURCES } from '../../lib/sources'
 import { useColors, ui } from '../../lib/theme'
 
 const cache = new Map<string, Track[]>()
@@ -21,7 +22,9 @@ export default function Search() {
   const params = useLocalSearchParams<{ q?: string }>()
   const [text, setText] = useState(params.q ?? '')
   const [query, setQuery] = useState(params.q ?? '')
-  const [source, setSource] = useState<SourceId>('youtube')
+  const [source, setSource] = useState<SourceId | 'all'>('youtube')
+  // Songs, or artists / playlists / profiles on the chosen platform (or all of them)
+  const [tab, setTab] = useState<'songs' | EntityKind>('songs')
   const [results, setResults] = useState<Track[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -51,7 +54,7 @@ export default function Search() {
   }, [local, query])
 
   useEffect(() => {
-    if (!query || source === 'local') {
+    if (!query || source === 'local' || source === 'all' || tab !== 'songs') {
       setResults(null)
       setError(null)
       return
@@ -85,6 +88,7 @@ export default function Search() {
   }, [query, source])
 
   const shown = source === 'local' ? localResults : (results ?? [])
+  const entitySources = source === 'all' ? (['spotify', 'youtube', 'soundcloud'] as SourceId[]).filter((s) => s !== 'spotify' || spotifyOn) : source === 'local' ? [] : [source]
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg, paddingTop: insets.top + 8 }}>
@@ -108,10 +112,28 @@ export default function Search() {
         {text ? <IconButton name="close-circle" size={20} color={c.bg} label="Clear" onPress={() => setText('')} /> : null}
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }} contentContainerStyle={{ gap: 8, padding: ui.pad, paddingBottom: 6 }}>
+        {tab !== 'songs' ? <Chip label="All" active={source === 'all'} onPress={() => setSource('all')} /> : null}
         {sources.map((s) => (
           <Chip key={s} label={SOURCES[s].short} color={SOURCES[s].color} active={source === s} onPress={() => setSource(s)} />
         ))}
       </ScrollView>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }} contentContainerStyle={{ gap: 8, paddingHorizontal: ui.pad, paddingBottom: 6 }}>
+        <Chip
+          label="Songs"
+          active={tab === 'songs'}
+          onPress={() => {
+            setTab('songs')
+            if (source === 'all') setSource('youtube')
+          }}
+        />
+        {ENTITY_TABS.map((t) => (
+          <Chip key={t.kind} label={t.label} active={tab === t.kind} onPress={() => setTab(t.kind)} />
+        ))}
+      </ScrollView>
+      {tab !== 'songs' ? (
+        <EntityResults query={query} kind={tab} sources={entitySources} />
+      ) : (
+        <>
       {loading && !shown.length ? <Spinner /> : null}
       {error ? <ErrorText text={error} /> : null}
       <TrackList
@@ -124,6 +146,8 @@ export default function Search() {
           ) : null
         }
       />
+        </>
+      )}
     </View>
   )
 }

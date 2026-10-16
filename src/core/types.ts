@@ -73,6 +73,27 @@ export interface AccountStatus {
 }
 
 /** A playlist that lives on a streaming service (not a ProjectM playlist). */
+/** Search results besides songs: an artist, a public playlist or a user profile on a platform. */
+export type EntityKind = 'artist' | 'playlist' | 'profile'
+export interface Entity {
+  source: SourceId
+  kind: EntityKind
+  id: string
+  name: string
+  /** e.g. "Artist · 73M monthly listeners", "by Mimi · 120 songs", "SoundCloud user · 12k followers" */
+  subtitle?: string
+  artwork?: string
+  /** new releases: when it came out (ms) */
+  releasedAt?: number
+  /** a single song or video: its track, so opening it needs no lookup */
+  tracks?: Track[]
+}
+/** What opening an entity shows: its songs, and (for profiles and artists) its playlists. */
+export interface EntityPage {
+  tracks: Track[]
+  playlists: Entity[]
+}
+
 export interface RemotePlaylist {
   id: string
   name: string

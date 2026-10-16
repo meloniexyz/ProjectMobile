@@ -107,6 +107,12 @@ export default function Settings() {
 
         <Group title="Display" />
         <Row title="Themes" sub={THEMES.find((t) => t.id === s.theme)?.name ?? 'Theme'} icon="color-palette-outline" onPress={() => router.push('/settings/themes')} chevron />
+        <Row title="New releases: longest song" sub="Home → New releases shows new music from the people you follow. Longer uploads (mixes, livestreams, vlogs) are left out; albums always show." icon="sparkles-outline" />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: ui.pad, paddingBottom: 8 }}>
+          {([5, 8, 10, 15, 30, 0] as const).map((m) => (
+            <Chip key={m} label={m ? `${m} min` : 'No limit'} active={s.newReleasesMaxMinutes === m} onPress={() => updateSettings({ newReleasesMaxMinutes: m })} />
+          ))}
+        </ScrollView>
 
         <Group title="Local files" />
         <Row

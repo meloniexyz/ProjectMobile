@@ -1,5 +1,5 @@
 import * as Crypto from 'expo-crypto'
-import type { AccountStatus, RemotePlaylist, Track } from '../../core/types'
+import type { AccountStatus, RemotePlaylist, Track, Entity, EntityKind, EntityPage } from '../../core/types'
 import { JsonFile, secrets } from '../storage'
 
 /**
@@ -14,6 +14,7 @@ import { JsonFile, secrets } from '../storage'
 export const REDIRECT_URI = 'http://127.0.0.1:43821/callback'
 const SCOPES = [
   'user-read-private',
+  'user-follow-read', // new releases from the artists you follow
   'user-library-read',
   'user-library-modify',
   'playlist-read-private',
@@ -32,6 +33,21 @@ interface Saved {
   expiresAt?: number
   userName?: string
 }
+
+interface SpArtist {
+  id: string
+  name: string
+  images?: { url: string }[]
+  followers?: { total: number }
+}
+interface SpPlaylist {
+  id: string
+  name: string
+  images?: { url: string }[]
+  owner?: { display_name?: string }
+  tracks?: { total: number }
+}
+const compact = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1).replace(/\.0$/, '')}M` : n >= 1e3 ? `${Math.round(n / 1e3)}k` : String(n))
 
 interface ApiTrack {
   id: string | null
@@ -326,7 +342,69 @@ class Spotify {
     })
   }
 
+  // ---------- artists and playlists (search tabs), new releases ----------
+
+  async searchEntities(query: string, kind: EntityKind): Promise<Entity[]> {
+    if (kind === 'profile') return [] // Spotify doesn't let apps search user profiles
+    const type = kind === 'artist' ? 'artist' : 'playlist'
+    const r = await this.api<{ artists?: { items: (SpArtist | null)[] }; playlists?: { items: (SpPlaylist | null)[] } }>(`/search?${new URLSearchParams({ q: query, type, limit: '10' })}`)
+    if (kind === 'artist')
+      return (r.artists?.items ?? []).filter((a): a is SpArtist => !!a).map((a) => ({ source: 'spotify', kind, id: a.id, name: a.name, subtitle: `Artist${a.followers?.total ? ` · ${compact(a.followers.total)} followers` : ''}`, artwork: a.images?.[0]?.url }))
+    return (r.playlists?.items ?? []).filter((p): p is SpPlaylist => !!p).map((p) => ({ source: 'spotify', kind, id: p.id, name: p.name, subtitle: `by ${p.owner?.display_name ?? 'Spotify'}${p.tracks?.total ? ` · ${p.tracks.total} songs` : ''}`, artwork: p.images?.[0]?.url }))
+  }
+
+  async entityPage(e: Entity): Promise<EntityPage> {
+    if (e.kind === 'playlist') return { tracks: await this.playlistTracks(e.id), playlists: [] }
+    // top tracks are closed to apps like ProjectM now: fall back to searching the artist's songs
+    const top = await this.api<{ tracks: ApiTrack[] }>(`/artists/${e.id}/top-tracks?market=from_token`).catch(async () => {
+      const pages = await Promise.all(
+        [0, 10, 20].map((offset) => this.api<{ tracks: { items: ApiTrack[] } }>(`/search?${new URLSearchParams({ q: `artist:"${e.name}"`, type: 'track', limit: '10', offset: String(offset) })}`).catch(() => ({ tracks: { items: [] as ApiTrack[] } }))),
+      )
+      const seen = new Set<string>()
+      return { tracks: pages.flatMap((p) => p.tracks.items).filter((t) => (t.artists as { id?: string }[]).some((a) => a.id === e.id) && t.id && !seen.has(t.id) && !!seen.add(t.id)) }
+    })
+    const albums = await this.api<{ items: { id: string; name: string; images?: { url: string }[]; release_date?: string; album_type?: string }[] }>(`/artists/${e.id}/albums?include_groups=album,single&limit=10`).catch(() => ({ items: [] }))
+    return {
+      tracks: top.tracks.filter(playable).map(toTrack),
+      playlists: albums.items.map((a) => ({ source: 'spotify' as const, kind: 'playlist' as const, id: `album:${a.id}`, name: a.name, subtitle: `${a.album_type === 'single' ? 'Single' : 'Album'}${a.release_date ? ` · ${a.release_date.slice(0, 4)}` : ''}`, artwork: a.images?.[0]?.url })),
+    }
+  }
+
+  /** Albums and singles from the last 6 weeks by the artists you follow (needs user-follow-read). */
+  async newReleases(_maxSeconds: number): Promise<Entity[]> {
+    const artists: { id: string }[] = []
+    let next: string | null = '/me/following?type=artist&limit=50'
+    for (let page = 0; next && page < 4; page++) {
+      const r: { artists: { items: { id: string }[]; next: string | null } } = await this.api(next)
+      artists.push(...r.artists.items)
+      next = r.artists.next
+    }
+    const since = Date.now() - 42 * 24 * 3600_000
+    const out: Entity[] = []
+    for (let i = 0; i < artists.length; i += 5) {
+      const batch = await Promise.all(
+        artists.slice(i, i + 5).map((a) =>
+          this.api<{ items: { id: string; name: string; images?: { url: string }[]; artists?: { name: string }[]; album_type?: string; release_date?: string; release_date_precision?: string }[] }>(`/artists/${a.id}/albums?include_groups=album,single&limit=5`).catch(() => ({ items: [] })),
+        ),
+      )
+      for (const r of batch)
+        for (const al of r.items) {
+          if (al.release_date_precision !== 'day') continue
+          const at = Date.parse(al.release_date ?? '')
+          if (!at || at < since) continue
+          out.push({ source: 'spotify', kind: 'playlist', id: `album:${al.id}`, name: al.name, subtitle: `${al.album_type === 'single' ? 'Single' : 'Album'} · ${(al.artists ?? []).map((x) => x.name).join(', ')}`, artwork: al.images?.[0]?.url, releasedAt: at })
+        }
+    }
+    const seen = new Set<string>()
+    return out.filter((e) => !seen.has(e.id) && !!seen.add(e.id)).sort((a, b) => b.releasedAt! - a.releasedAt!).slice(0, 25)
+  }
+
   async playlistTracks(id: string): Promise<Track[]> {
+    // an artist's album, opened from their page or new releases
+    if (id.startsWith('album:')) {
+      const album = await this.api<{ name: string; images?: { url: string }[]; tracks: { items: Omit<ApiTrack, 'album'>[] } }>(`/albums/${id.slice(6)}`)
+      return album.tracks.items.filter((t) => t.id).map((t) => toTrack({ ...t, album: { name: album.name, images: album.images } } as ApiTrack))
+    }
     const items = await this.paged<{ item?: ApiTrack | null; track?: ApiTrack | null }>(`/playlists/${encodeURIComponent(id)}/items?limit=50`)
     return items.map((i) => i.item ?? i.track).filter(playable).map(toTrack)
   }
