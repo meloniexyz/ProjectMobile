@@ -190,7 +190,12 @@ async function runAll(report: (r: Result) => void, cross?: CrossCheck) {
   })
 
   await run('Lyrics (LRCLIB)', async () => {
-    const l = await getLyrics('One More Time', 'Daft Punk', 'Discovery', 320)
+    // a second song after a pause, so one dropped request doesn't count as broken lyrics
+    let l = await getLyrics('One More Time', 'Daft Punk', 'Discovery', 320).catch(() => [])
+    if (!l.length) {
+      await sleep(2000)
+      l = await getLyrics('Get Lucky', 'Daft Punk', 'Random Access Memories', 369).catch(() => [])
+    }
     if (!l.length) throw new Error('none found')
     return `${l.length} versions, synced: ${l.some((x) => x.synced) ? 'yes' : 'no'}`
   })
