@@ -197,7 +197,9 @@ export function newReleases(maxMinutes: number, force = false) {
             }),
           ),
         )
-        return { items: lists.flat().sort((a, b) => (b.releasedAt ?? 0) - (a.releasedAt ?? 0)), problems }
+        // Spotify first, then SoundCloud, then YouTube; newest first within each
+        const items = [lists[0], lists[2], lists[1]].flatMap((l) => [...l].sort((a, b) => (b.releasedAt ?? 0) - (a.releasedAt ?? 0)))
+        return { items, problems }
       })(),
     }
   }
