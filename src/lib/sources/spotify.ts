@@ -104,6 +104,15 @@ class Spotify {
     return { clientId: s.clientId ?? null, connected: !!s.refreshToken, userName: s.userName ?? null, redirectUri: REDIRECT_URI }
   }
 
+  /** For ProjectM accounts: the Client ID travels; the sign-in itself stays per device. */
+  syncedClientId() {
+    return this.saved().clientId ?? null
+  }
+
+  async useSyncedClientId(clientId: string | null) {
+    if (clientId && clientId !== this.saved().clientId) await this.save({ ...this.saved(), clientId })
+  }
+
   async logout() {
     const { clientId } = this.saved()
     await this.save({ clientId })

@@ -6,6 +6,7 @@ import { Button, Header, Txt } from '../../components/ui'
 import type { AccountDevice } from '../../core/account'
 import { useStore } from '../../core/store'
 import { changePassword, deleteAccount, devices, logIn, logOut, ownerReset, recover, removeDevice, signUp, syncNow, syncStore } from '../../lib/sync'
+import { relayStore } from '../../lib/accountExtras'
 import { useColors, ui } from '../../lib/theme'
 import { toast } from '../../lib/ui'
 
@@ -300,9 +301,22 @@ function RecoveryCode({ code, done }: { code: string; done: () => void }) {
   )
 }
 
+/** Local songs passing between devices, in words. */
+function relayText(r: { waitingForDevice: number; waitingForSpace: number; waitingForWifi: number; sending: number; receiving: number }) {
+  const parts = [
+    r.sending && `sending ${r.sending} of your songs to your other devices`,
+    r.receiving && `receiving ${r.receiving}`,
+    r.waitingForWifi && `${r.waitingForWifi} waiting for Wi-Fi`,
+    r.waitingForDevice && `${r.waitingForDevice} waiting for a device that has them to come online`,
+    r.waitingForSpace && `${r.waitingForSpace} waiting for space on the server`,
+  ].filter(Boolean)
+  return parts.length ? `Local songs: ${parts.join(', ')}.` : ''
+}
+
 function LoggedIn({ setMode }: { setMode: (m: Mode | null) => void }) {
   const c = useColors()
   const st = useStore(syncStore, (s) => s)
+  const relay = useStore(relayStore, (s) => s)
   const [list, setList] = useState<{ devices: AccountDevice[]; thisDevice: string } | null>(null)
   const load = () => devices().then(setList, (e) => toast(message(e)))
   useEffect(() => {
@@ -315,8 +329,19 @@ function LoggedIn({ setMode }: { setMode: (m: Mode | null) => void }) {
           {st.email}
         </Txt>
         <Txt tone={st.error ? 'text' : 'text2'} size={14} style={st.error ? { color: '#ff5d6c' } : undefined}>
-          {st.error ? `Couldn't sync: ${st.error}` : st.syncing ? 'Syncing…' : st.lastSync ? `Synced ${ago(st.lastSync)}. Your playlists are the same on every device you log in on.` : 'Waiting to sync'}
+          {st.error
+            ? `Couldn't sync: ${st.error}`
+            : st.syncing
+              ? 'Syncing…'
+              : st.lastSync
+                ? `Synced ${ago(st.lastSync)}. Playlists, look, sound and quality, history and your YouTube Music / SoundCloud sign-ins are the same on every device you log in on.`
+                : 'Waiting to sync'}
         </Txt>
+        {relayText(relay) ? (
+          <Txt tone="text2" size={13}>
+            {relayText(relay)}
+          </Txt>
+        ) : null}
         <Button title="Sync now" kind="secondary" icon="sync-outline" busy={st.syncing} onPress={() => void syncNow()} />
       </Card>
       <Card>

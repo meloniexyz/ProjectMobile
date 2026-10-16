@@ -11,6 +11,15 @@ const MAX = 5_000 // about a year of daily listening; keeps the file small enoug
 const file = new JsonFile<ListenEntry[]>('history.json', [])
 export const historyStore = createStore<{ entries: ListenEntry[] }>({ entries: [] })
 
+/** told about local changes, so the ProjectM account can send them */
+export const historyHooks = { onChange: (_c: { upsert?: string; remove?: string; clear?: true }) => {} }
+
+/** After merging with the account: the whole list, newest first. */
+export function replaceHistory(list: ListenEntry[]) {
+  historyStore.set({ entries: list })
+  file.set(list)
+}
+
 export function initHistory() {
   historyStore.set({ entries: file.get() })
 }
@@ -33,6 +42,7 @@ function store() {
   const next = i >= 0 ? [...list.slice(0, i), e, ...list.slice(i + 1)] : [e, ...list].slice(0, MAX)
   historyStore.set({ entries: next })
   file.set(next)
+  historyHooks.onChange({ upsert: e.id })
 }
 
 /** Called by the player on every state update. */
@@ -85,12 +95,14 @@ export function flushListening() {
 }
 
 export function removeHistoryEntry(id: string) {
+  historyHooks.onChange({ remove: id })
   const next = historyStore.get().entries.filter((e) => e.id !== id)
   historyStore.set({ entries: next })
   file.set(next)
 }
 
 export function clearHistory() {
+  historyHooks.onChange({ clear: true })
   entry = null
   entryKey = null
   historyStore.set({ entries: [] })

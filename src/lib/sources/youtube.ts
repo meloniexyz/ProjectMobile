@@ -474,6 +474,26 @@ class YouTube {
     this.onDeviceCode(null)
   }
 
+  /** The sign-in as it travels with a ProjectM account: without the short-lived access token. */
+  syncedLogin(): Record<string, unknown> | null {
+    const s = this.saved()
+    if (!s) return null
+    const { access_token: _a, expiry_date: _e, ...rest } = s as OAuth2Tokens & { expires_in?: number }
+    delete (rest as { expires_in?: number }).expires_in
+    return rest
+  }
+
+  /** A sign-in from another device (or null: signed out there). */
+  async useSyncedLogin(login: Record<string, unknown> | null) {
+    if (!login) return this.logout()
+    await secrets.set(OAUTH_KEY, JSON.stringify({ ...login, access_token: '', expiry_date: new Date(0).toISOString() }))
+    this.authedClient = null
+    this.accountStreamClient = null
+    this.userName = null
+    this.nameLookup = null
+    this.likedIds = null
+  }
+
   async logout() {
     await secrets.set(OAUTH_KEY, null)
     this.authedClient = null

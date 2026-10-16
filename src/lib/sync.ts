@@ -10,6 +10,7 @@ import type { AccountDevice, AccountSession, DeviceInfo } from '../core/account'
 import { createStore } from '../core/store'
 import { mergePlaylists, type SyncDoc } from '../core/sync'
 import type { Playlist } from '../core/types'
+import { forgetAccountSignIns, initExtras, syncExtras } from './accountExtras'
 import { getPlaylists, saveCoverBytes, setSyncedPlaylists } from './library'
 import { JsonFile, secrets } from './storage'
 
@@ -50,6 +51,7 @@ export function enableNativeKeys() {
 export function initSync() {
   account.setAccountFetch(expoFetch as unknown as typeof fetch)
   enableNativeKeys()
+  initExtras()
   const raw = secrets.get(SESSION)
   if (raw) {
     try {
@@ -125,6 +127,7 @@ export async function logOut() {
   session = null
   await secrets.set(SESSION, null)
   set({ loggedIn: false, email: undefined, syncing: false, lastSync: undefined, error: undefined, needsLogin: false })
+  await forgetAccountSignIns()
   if (s) await account.logOut(s)
 }
 
@@ -197,6 +200,7 @@ async function run() {
     deletedFile.set(m.deleted)
     if (m.localChanged) setSyncedPlaylists(await incoming(m.playlists, s))
     if (m.upload) again = true
+    await guard(syncExtras(s))
     set({ syncing: false, lastSync: Date.now(), error: undefined })
   } catch (e) {
     if (session) set({ syncing: false, error: (e as Error).message })

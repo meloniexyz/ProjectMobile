@@ -286,6 +286,13 @@ export function deletePlaylist(id: string) {
   commit(libStore.get().playlists.filter((p) => p.id !== id))
 }
 
+/** A local song another device sent through the ProjectM account: this playlist track's copy. */
+export function saveReceivedSong(trackId: string, bytes: Uint8Array, ext: string) {
+  const dest = new File(keptDir, `${trackId}.${ext}`)
+  if (dest.exists) dest.delete()
+  dest.write(bytes)
+}
+
 /** Saves a playlist cover that came from another device; returns its file address. */
 export function saveCoverBytes(bytes: Uint8Array, type: string) {
   const ext = type.includes('png') ? 'png' : type.includes('webp') ? 'webp' : 'jpg'

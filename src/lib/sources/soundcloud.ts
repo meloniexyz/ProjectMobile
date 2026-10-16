@@ -131,6 +131,15 @@ class SoundCloud {
     return { connected: !!p, userName: p?.username ?? null }
   }
 
+  /** For ProjectM accounts: the connected profile, or null. */
+  syncedProfile() {
+    return this.store.get().profile ?? null
+  }
+
+  useSyncedProfile(p: unknown | null) {
+    this.store.set({ ...this.store.get(), profile: (p as { id: number; username: string } | null) ?? undefined }, true)
+  }
+
   async connect(input: string): Promise<AccountStatus> {
     let found: ScUserFull | null
     const byId = input.match(/^id:(\d+)$/)

@@ -3,7 +3,8 @@ import * as account from '../../core/account'
 import { passwordKeys, setPbkdf2, toB64 } from '../../core/keys'
 import { pbkdf2Async } from '@noble/hashes/pbkdf2.js'
 import { sha256 } from '@noble/hashes/sha2.js'
-import { createPlaylist, getPlaylists } from '../../lib/library'
+import { createPlaylist, getPlaylists, localUriFor } from '../../lib/library'
+import { historyStore } from '../../lib/history'
 import * as accountSync from '../../lib/sync'
 import { File } from 'expo-file-system'
 import { useLocalSearchParams } from 'expo-router'
@@ -18,7 +19,7 @@ import { Button, Header, Icon, Txt } from '../../components/ui'
 import { ensureOnPhone, fileUri, lookup, removeDownload } from '../../lib/audioCache'
 import { eqFilters } from '../../lib/eq'
 import { getPlayer, playTracks, seek, toggle } from '../../lib/player'
-import { DEFAULT_MOBILE_SETTINGS } from '../../lib/settings'
+import { DEFAULT_MOBILE_SETTINGS, getSettings } from '../../lib/settings'
 import { resolvePlan, soundcloud, youtube } from '../../lib/sources'
 import { dataDir } from '../../lib/storage'
 import { useColors, ui } from '../../lib/theme'
@@ -255,10 +256,20 @@ async function runAll(report: (r: Result) => void, cross?: CrossCheck) {
       await accountSync.logIn(cross.email, cross.password)
       for (let i = 0; i < 20 && !getPlaylists().some((p) => p.name === 'From PC (CI)'); i++) await sleep(500)
       if (!getPlaylists().some((p) => p.name === 'From PC (CI)')) throw new Error("the PC's playlist didn't arrive")
+      // stage 2: look, history, platform sign-in and the local song's file came along
+      await accountSync.syncNow()
+      const missing: string[] = []
+      if (getSettings().accent !== '#22d3ee') missing.push(`accent (${getSettings().accent})`)
+      if (!historyStore.get().entries.some((e) => e.id === 'ci-play')) missing.push('history')
+      if (soundcloud.syncedProfile()?.username !== 'ci-check') missing.push('SoundCloud profile')
+      const song = getPlaylists().flatMap((p) => p.tracks).find((t) => t.id === 'ci-pc-file')
+      if (!song || !localUriFor(song)) missing.push('local song file')
+      if (missing.length) throw new Error(`didn't arrive: ${missing.join(', ')}`)
       createPlaylist([], 'From iPhone (CI)')
       await accountSync.syncNow()
       await accountSync.logOut()
-      return "got the PC's playlist and sent one back"
+      if (soundcloud.syncedProfile()) throw new Error('log out kept the SoundCloud profile that came from the account')
+      return "got the PC's playlist, look, history, SoundCloud and local song; sent a playlist back; log out removed the sign-in"
     })
   }
 
