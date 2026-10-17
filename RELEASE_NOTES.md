@@ -1,5 +1,5 @@
-Install **ProjectMobile-1.5.1.ipa** with Sideloadly (same as before; your library and settings stay).
+**Install / update:** download the `.ipa` below and install it with [Sideloadly](https://sideloadly.io) using the same Apple ID as before (your data stays). With a free Apple ID, reinstall every 7 days.
 
-**Account button on Home**, top right: shows the ProjectM account you are logged in with (the first letter of your email on your accent colour). Tap it to open your account: sync status, devices, password and log out. A yellow dot means the last sync failed or the phone was logged out.
+**Updates on start:** when a newer ProjectMobile is on GitHub, the app tells you what is new and offers **Update** (opens the release so you can get the new .ipa) or **Skip**. When there is nothing new, nothing is shown.
 
-Same on Windows in ProjectM 1.2.1: Account in the sidebar, under History.
+Same on Windows in ProjectM 1.2.2, where Update installs it by itself.

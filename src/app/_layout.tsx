@@ -13,6 +13,7 @@ import { boot } from '../lib/boot'
 import { BotGuardHost } from '../lib/sources/botguard'
 import { dataDir } from '../lib/storage'
 import { syncStore } from '../lib/sync'
+import { offerUpdate } from '../lib/update'
 import { useColors } from '../lib/theme'
 
 SplashScreen.preventAutoHideAsync().catch(() => {})
@@ -43,14 +44,19 @@ export default function RootLayout() {
       setTimeout(() => router.push({ pathname: '/settings/diagnostics', params }), 1500)
       return
     }
+    // every start: offer a newer version if GitHub has one
+    const update = setTimeout(offerUpdate, 2500)
     // first launch: offer to log in or create a ProjectM account, once (Back skips it)
     const asked = new File(dataDir, 'account-asked')
-    if (asked.exists) return
+    if (asked.exists) return () => clearTimeout(update)
     const t = setTimeout(() => {
       asked.create({ overwrite: true })
       if (!syncStore.get().loggedIn) router.push('/settings/account')
     }, 1200)
-    return () => clearTimeout(t)
+    return () => {
+      clearTimeout(t)
+      clearTimeout(update)
+    }
   }, [])
   return (
     <SafeAreaProvider>
