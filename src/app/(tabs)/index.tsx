@@ -19,6 +19,35 @@ import { SOURCES } from '../../lib/sources'
 import { useColors, ui } from '../../lib/theme'
 import { openTrackSheet } from '../../lib/ui'
 import { useSettings } from '../../lib/settings'
+import { syncStore } from '../../lib/sync'
+
+/** The ProjectM account you're logged in with (first letter on the accent colour), like the PC's sidebar → Account. */
+function AccountButton() {
+  const c = useColors()
+  const st = useStore(syncStore, (s) => s)
+  const email = st.loggedIn || st.needsLogin ? st.email : undefined
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={st.loggedIn && email ? `Account, ${email}` : 'Account'}
+      testID="home-account"
+      onPress={() => router.push('/settings/account')}
+      hitSlop={6}
+      style={{ width: 32, height: 32, marginHorizontal: 4, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: email ? c.accent : 'transparent' }}
+    >
+      {email ? (
+        <Txt size={15} weight="800" style={{ color: c.accentInk }}>
+          {email[0]!.toUpperCase()}
+        </Txt>
+      ) : (
+        <Icon name="person-circle-outline" size={28} color={c.text} />
+      )}
+      {st.needsLogin || (st.loggedIn && st.error) ? (
+        <View style={{ position: 'absolute', top: -1, right: -1, width: 10, height: 10, borderRadius: 5, backgroundColor: '#f5a524', borderWidth: 2, borderColor: c.bg }} />
+      ) : null}
+    </Pressable>
+  )
+}
 
 function greeting() {
   const h = new Date().getHours()
@@ -140,6 +169,7 @@ export default function Home() {
         </Txt>
         <IconButton name="time-outline" label="Listening history" onPress={() => router.push('/history')} />
         <IconButton name="settings-outline" label="Settings" onPress={() => router.push('/settings')} />
+        <AccountButton />
       </View>
 
       {recent.length ? (
