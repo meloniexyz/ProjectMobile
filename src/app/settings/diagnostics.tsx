@@ -21,6 +21,7 @@ import { eqFilters } from '../../lib/eq'
 import { getPlayer, playTracks, seek, toggle } from '../../lib/player'
 import { DEFAULT_MOBILE_SETTINGS, getSettings } from '../../lib/settings'
 import { resolvePlan, songMatches, soundcloud, youtube } from '../../lib/sources'
+import { checkForUpdate } from '../../lib/update'
 import { dataDir } from '../../lib/storage'
 import { useColors, ui } from '../../lib/theme'
 
@@ -291,6 +292,17 @@ async function runAll(report: (r: Result) => void, cross?: CrossCheck) {
       return "got the PC's playlist, look, history, SoundCloud, local song, song pick (and played it) and profile; sent a playlist back; log out removed the sign-in"
     })
   }
+
+  await run('Update check (GitHub)', async () => {
+    const u = await checkForUpdate().catch((e: Error) => {
+      // GitHub limits unsigned requests per address; test machines share theirs
+      if (/40[39]|429/.test(e.message)) return null
+      throw e
+    })
+    if (!u) return 'skipped: GitHub rate limit on this network'
+    if (!u.current) throw new Error("couldn't read this app's version")
+    return `this app ${u.current}, newest release ${u.latest}${u.available ? ' (update offered)' : ''}`
+  })
 
   await run('Equalizer solver', async () => {
     const bass = PRESETS.find((p) => /bass/i.test(p.name)) ?? PRESETS[1]

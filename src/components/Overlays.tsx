@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Modal, Pressable, ScrollView, Switch, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { RemotePlaylist, Track } from '../core/types'
-import { useStore } from '../core/store'
+import { createStore, useStore } from '../core/store'
 import { canLike, fetchers, getList, isLikedOn, keys, setLikedOn, addToRemotePlaylist, isConnected } from '../lib/accounts'
 import { isDownloaded } from '../lib/audioCache'
 import { setDownloaded } from '../lib/downloads'
@@ -31,6 +31,30 @@ export function Toasts() {
         </View>
       ))}
     </View>
+  )
+}
+
+/**
+ * Where the song sheets and toasts are shown: the topmost screen that hosts them (the app itself, or
+ * a full-screen page on top of it like the player or the queue). iOS can't show a sheet from a screen
+ * that has another page over it; it would wait until that page closes.
+ */
+const hostStore = createStore<{ hosts: number[] }>({ hosts: [] })
+let nextHost = 0
+export function SheetHost() {
+  const [id] = useState(() => ++nextHost)
+  useEffect(() => {
+    hostStore.set({ hosts: [...hostStore.get().hosts, id] })
+    return () => hostStore.set({ hosts: hostStore.get().hosts.filter((h) => h !== id) })
+  }, [id])
+  const top = useStore(hostStore, (s) => s.hosts[s.hosts.length - 1])
+  if (top !== id) return null
+  return (
+    <>
+      <TrackSheet />
+      <SaveSheet />
+      <Toasts />
+    </>
   )
 }
 

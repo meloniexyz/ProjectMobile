@@ -8,8 +8,8 @@ import { Image } from 'expo-image'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Animated, View } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
-import { GlobalPlayingBar } from '../components/GlobalPlayingBar'
-import { SaveSheet, Toasts, TrackSheet } from '../components/Overlays'
+import { PageWithPlayingBar } from '../components/GlobalPlayingBar'
+import { SheetHost } from '../components/Overlays'
 import { boot } from '../lib/boot'
 import { BotGuardHost } from '../lib/sources/botguard'
 import { dataDir } from '../lib/storage'
@@ -99,17 +99,17 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ThemeProvider value={navTheme}>
         <View style={{ flex: 1, backgroundColor: c.bg }}>
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }}>
+          <Stack
+            screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }}
+            screenLayout={({ children, route }) => <PageWithPlayingBar route={route.name}>{children}</PageWithPlayingBar>}
+          >
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="player" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
             <Stack.Screen name="queue" options={{ presentation: 'modal' }} />
             <Stack.Screen name="spotify-login" options={{ presentation: 'modal' }} />
           </Stack>
-          <GlobalPlayingBar />
           <BotGuardHost />
-          <TrackSheet />
-          <SaveSheet />
-          <Toasts />
+          <SheetHost />
           <LaunchLogo />
           <StatusBar style="light" />
         </View>

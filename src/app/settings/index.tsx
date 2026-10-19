@@ -1,4 +1,4 @@
-import Constants from 'expo-constants'
+import { appVersion, offerUpdate } from '../../lib/update'
 import { router } from 'expo-router'
 import { Alert, ScrollView, Switch, View } from 'react-native'
 import { useStore } from '../../core/store'
@@ -163,10 +163,9 @@ function SyncSettingsRow() {
 function AboutRow() {
   const logo = useLogo()
   return (
-    <Row
-      title="ProjectM for iPhone"
-      sub={`Version ${Constants.expoConfig?.version ?? '1.0.0'}`}
-      left={<Image source={logo} style={{ width: 28, height: 28, marginHorizontal: 2 }} />}
-    />
+    <>
+      <Row title="ProjectM for iPhone" sub={`Version ${appVersion() ?? '?'}`} left={<Image source={logo} style={{ width: 28, height: 28, marginHorizontal: 2 }} />} />
+      <Row title="Check for updates" sub="Looks for a newer ProjectMobile on GitHub" icon="cloud-download-outline" onPress={() => void offerUpdate(true)} chevron testID="settings-update" />
+    </>
   )
 }

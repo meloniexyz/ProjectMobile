@@ -1,3 +1,4 @@
+import { SheetHost } from '../components/Overlays'
 import { FlatList, Pressable, View } from 'react-native'
 import { Artwork, Button, Header, IconButton, SourceRoute, Txt } from '../components/ui'
 import { clearUpcoming, jump, removeAt, usePlayer } from '../lib/player'
@@ -67,6 +68,7 @@ export default function Queue() {
           </Txt>
         }
       />
+      <SheetHost />
     </View>
   )
 }

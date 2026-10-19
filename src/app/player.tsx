@@ -1,3 +1,4 @@
+import { SheetHost } from '../components/Overlays'
 import { router } from 'expo-router'
 import { useState } from 'react'
 import { ActivityIndicator, Pressable, ScrollView, useWindowDimensions, View } from 'react-native'
@@ -149,6 +150,7 @@ export default function PlayerScreen() {
         {settings.showLyrics ? <LyricsCard track={track} /> : null}
         <SongInfoCard track={track} />
       </ScrollView>
+      <SheetHost />
     </View>
   )
 }
