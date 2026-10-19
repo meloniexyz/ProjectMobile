@@ -21,6 +21,7 @@ import { useColors, ui } from '../../lib/theme'
 import { openTrackSheet } from '../../lib/ui'
 import { useSettings } from '../../lib/settings'
 import { syncStore } from '../../lib/sync'
+import { greetingName, pickGreeting } from '../../core/greeting'
 
 /** The ProjectM account you're logged in with (first letter on the accent colour), like the PC's sidebar → Account. */
 function AccountButton() {
@@ -45,10 +46,6 @@ function AccountButton() {
   )
 }
 
-function greeting() {
-  const h = new Date().getHours()
-  return h < 5 ? 'Good night' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'
-}
 
 /** 2-column tile, like Spotify's "Jump back in". */
 function Tile({ title, artwork, onPress, onLongPress }: { title: string; artwork?: string; onPress: () => void; onLongPress?: () => void }) {
@@ -143,6 +140,10 @@ function RemotePlaylistRail({ source }: { source: SourceId }) {
 }
 
 export default function Home() {
+  // a new greeting each time Home opens, fitting the time of day, with your name (core/greeting.ts)
+  const profile = useStore(syncStore, (s) => (s.loggedIn ? s.profile : undefined))
+  const name = greetingName(profile?.displayName, profile?.handle)
+  const greeting = useMemo(() => pickGreeting(name), [name])
   const c = useColors()
   const logo = useLogo()
   const insets = useSafeAreaInsets()
@@ -161,7 +162,7 @@ export default function Home() {
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: ui.pad, gap: 10 }}>
         <Image source={logo} style={{ width: 30, height: 30 }} accessibilityLabel="ProjectM" />
         <Txt size={ui.font.title} weight="800" style={{ flex: 1 }}>
-          {greeting()}
+          {greeting}
         </Txt>
         <IconButton name="time-outline" label="Listening history" onPress={() => router.push('/history')} />
         <IconButton name="settings-outline" label="Settings" onPress={() => router.push('/settings')} />
