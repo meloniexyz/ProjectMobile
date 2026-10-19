@@ -10,6 +10,7 @@ import { Animated, View } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { PageWithPlayingBar } from '../components/GlobalPlayingBar'
 import { SheetHost } from '../components/Overlays'
+import { SidePanel } from '../components/SidePanel'
 import { boot } from '../lib/boot'
 import { BotGuardHost } from '../lib/sources/botguard'
 import { dataDir } from '../lib/storage'
@@ -109,6 +110,7 @@ export default function RootLayout() {
             <Stack.Screen name="spotify-login" options={{ presentation: 'modal' }} />
           </Stack>
           <BotGuardHost />
+          <SidePanel />
           <SheetHost />
           <LaunchLogo />
           <StatusBar style="light" />

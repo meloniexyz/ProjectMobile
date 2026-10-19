@@ -28,6 +28,15 @@ appId: com.projectm.app
       id: "tab-search"
     timeout: 90000
 - takeScreenshot: 01-home
+# the side panel (logo or left-to-right swipe on Home), then close it by tapping beside it
+- tapOn:
+    id: "open-side-panel"
+- extendedWaitUntil:
+    visible: "Local files"
+    timeout: 10000
+- takeScreenshot: 01b-side-panel
+- tapOn:
+    point: "95%,50%"
 - tapOn:
     id: "tab-search"
 - tapOn:

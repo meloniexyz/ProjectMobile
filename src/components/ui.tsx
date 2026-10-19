@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics'
 import { FontAwesome, Ionicons } from '@expo/vector-icons'
 import { Image } from 'expo-image'
 import { useGoBack } from '../lib/nav'
@@ -82,10 +83,14 @@ export function IconButton({
       accessibilityRole="button"
       accessibilityLabel={label}
       testID={label}
-      hitSlop={10}
+      hitSlop={12}
       disabled={disabled}
-      onPress={onPress}
-      style={({ pressed }) => [{ padding: 6, opacity: disabled ? 0.35 : pressed ? 0.55 : 1 }, style]}
+      onPress={() => {
+        // a soft tick so taps feel registered
+        Haptics.selectionAsync().catch(() => {})
+        onPress()
+      }}
+      style={({ pressed }) => [{ padding: 6, opacity: disabled ? 0.35 : pressed ? 0.6 : 1, transform: [{ scale: pressed ? 0.88 : 1 }] }, style]}
     >
       <Ionicons name={name} size={size} color={color ?? c.text} />
     </Pressable>

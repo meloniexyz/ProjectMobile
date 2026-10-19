@@ -15,7 +15,9 @@ import { ACCOUNT_SOURCES, accountStore, fetchers, keys, useList } from '../../li
 import { historyStore, mostPlayed, recentTracks } from '../../lib/history'
 import { libStore } from '../../lib/library'
 import { useConnection } from '../../lib/net'
-import { playTracks } from '../../lib/player'
+import { addToQueue, playTracks } from '../../lib/player'
+import { SwipeToQueue } from '../../components/Swipe'
+import { openSidePanel, useOpenPanelSwipe } from '../../components/SidePanel'
 import { SOURCES } from '../../lib/sources'
 import { useColors, ui } from '../../lib/theme'
 import { openTrackSheet } from '../../lib/ui'
@@ -83,14 +85,17 @@ function Card({ title, sub, artwork, onPress }: { title: string; sub?: string; a
 }
 
 function SongRow({ tracks, index }: { tracks: Track[]; index: number }) {
+  const c = useColors()
   const t = tracks[index]
   return (
+    <SwipeToQueue color={c.accent} onQueue={() => addToQueue([t])}>
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={t.title}
       onPress={() => playTracks(tracks, index)}
       onLongPress={() => openTrackSheet(t)}
-      style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: ui.pad, paddingVertical: 6 }}
+      unstable_pressDelay={70}
+      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: ui.pad, paddingVertical: 6, backgroundColor: pressed ? c.hover : c.bg })}
     >
       <Txt tone="text3" size={13} style={{ width: 18, textAlign: 'right' }}>
         {index + 1}
@@ -106,6 +111,7 @@ function SongRow({ tracks, index }: { tracks: Track[]; index: number }) {
       </View>
       <SourceIcon source={t.source} size={13} />
     </Pressable>
+    </SwipeToQueue>
   )
 }
 
@@ -156,11 +162,15 @@ export default function Home() {
   const recent = useMemo(() => recentTracks(entries, 6), [entries])
   const top = useMemo(() => mostPlayed(entries, 10).map((t) => t.track!).filter(Boolean), [entries])
   const [topTab, setTopTab] = useState<'here' | 'spotify'>('here')
+  const panelSwipe = useOpenPanelSwipe()
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: c.bg }} contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: 160 }}>
+    // swipe left to right anywhere on Home: the side panel, like the Windows sidebar
+    <ScrollView {...panelSwipe} style={{ flex: 1, backgroundColor: c.bg }} contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: 160 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: ui.pad, gap: 10 }}>
-        <Image source={logo} style={{ width: 30, height: 30 }} accessibilityLabel="ProjectM" />
+        <Pressable accessibilityRole="button" accessibilityLabel="Open side panel" testID="open-side-panel" hitSlop={8} onPress={openSidePanel}>
+          <Image source={logo} style={{ width: 30, height: 30 }} />
+        </Pressable>
         <Txt size={ui.font.title} weight="800" style={{ flex: 1 }}>
           {greeting}
         </Txt>

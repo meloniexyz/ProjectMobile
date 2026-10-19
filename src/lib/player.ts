@@ -17,6 +17,8 @@ export interface QueueItem {
   /** unique per queue entry, so the same song can be queued twice */
   key: number
   track: Track
+  /** added with "Add to queue" / "Play next": plays before the rest, like Spotify's "Next in queue" */
+  queued?: true
 }
 export type Repeat = 'off' | 'all' | 'one'
 
@@ -400,15 +402,31 @@ export function playTracks(tracks: Track[], start = 0, shuffle = state.shuffle) 
     index = 0
   }
   originalOrder = shuffle ? ordered : null
+  // like Spotify, songs you queued still come next when you start something else
+  const waiting = pendingQueued()
+  if (waiting.length) items = [...items.slice(0, index + 1), ...waiting, ...items.slice(index + 1)]
   emit({ queue: items, index, shuffle }, true)
   load(true)
 }
 
+/** Queued songs still waiting after the current one. */
+const pendingQueued = () => {
+  const out: QueueItem[] = []
+  for (let i = state.index + 1; i < state.queue.length && state.queue[i].queued; i++) out.push(state.queue[i])
+  return out
+}
+
+/** Where "Add to queue" puts songs: after the songs already queued, before the rest (first added plays first). */
+const queueEnd = () => state.index + 1 + pendingQueued().length
+
+const wrapQueued = (tracks: Track[]): QueueItem[] => wrap(tracks).map((q) => ({ ...q, queued: true as const }))
+
 let originalOrder: QueueItem[] | null = null
 
+/** Plays these right after the current song, ahead of anything queued before. */
 export function playNext(tracks: Track[]) {
   if (!state.queue.length) return playTracks(tracks)
-  const items = wrap(tracks)
+  const items = wrapQueued(tracks)
   const queue = state.queue.slice()
   queue.splice(state.index + 1, 0, ...items)
   emit({ queue }, true)
@@ -416,10 +434,15 @@ export function playNext(tracks: Track[]) {
   toast(tracks.length === 1 ? `"${tracks[0].title}" plays next` : `${tracks.length} songs play next`)
 }
 
+/** Spotify's "Add to queue": after the current song and anything queued before it, in the order added. */
 export function addToQueue(tracks: Track[]) {
-  const items = wrap(tracks)
+  const items = wrapQueued(tracks)
   if (!state.queue.length) emit({ queue: items, index: 0, duration: items[0]?.track.duration ?? 0 }, true)
-  else emit({ queue: [...state.queue, ...items] }, true)
+  else {
+    const queue = state.queue.slice()
+    queue.splice(queueEnd(), 0, ...items)
+    emit({ queue }, true)
+  }
   void prefetch()
   toast(tracks.length === 1 ? 'Added to queue' : `${tracks.length} songs added to queue`)
 }
@@ -493,14 +516,20 @@ export function toggleShuffle() {
     if (originalOrder && cur) {
       // put the original order back, keeping songs added since
       const known = new Set(originalOrder.map((q) => q.key))
-      const restored = [...originalOrder.filter((q) => state.queue.some((s) => s.key === q.key)), ...state.queue.filter((q) => !known.has(q.key))]
-      emit({ queue: restored, index: Math.max(0, restored.findIndex((q) => q.key === cur.key)), shuffle: false }, true)
+      const waiting = new Set(pendingQueued().map((q) => q.key))
+      let restored = [...originalOrder.filter((q) => state.queue.some((s) => s.key === q.key)), ...state.queue.filter((q) => !known.has(q.key))].filter((q) => !waiting.has(q.key))
+      // queued songs stay right after the current one
+      const at = Math.max(0, restored.findIndex((q) => q.key === cur.key))
+      restored = [...restored.slice(0, at + 1), ...state.queue.filter((q) => waiting.has(q.key)), ...restored.slice(at + 1)]
+      emit({ queue: restored, index: at, shuffle: false }, true)
     } else emit({ shuffle: false }, true)
     originalOrder = null
   } else {
     originalOrder = state.queue.slice()
-    const upcoming = shuffled(state.queue.slice(state.index + 1))
-    emit({ queue: [...state.queue.slice(0, state.index + 1), ...upcoming], shuffle: true }, true)
+    // queued songs keep their place and order; only the rest is shuffled
+    const end = queueEnd()
+    const upcoming = shuffled(state.queue.slice(end))
+    emit({ queue: [...state.queue.slice(0, end), ...upcoming], shuffle: true }, true)
   }
   void prefetch()
 }

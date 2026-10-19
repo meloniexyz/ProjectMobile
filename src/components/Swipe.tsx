@@ -1,6 +1,7 @@
 import * as Haptics from 'expo-haptics'
-import { useMemo, useRef, type ReactNode } from 'react'
-import { Animated, PanResponder, type StyleProp, type ViewStyle } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
+import { Animated, PanResponder, View, type StyleProp, type ViewStyle } from 'react-native'
 
 export interface SwipeHandlers {
   onLeft?: () => void
@@ -93,5 +94,69 @@ export function Swipeable({
     <Animated.View style={[style, { transform: [{ translateX: x }, { translateY: y }] }]} {...responder.panHandlers}>
       {children}
     </Animated.View>
+  )
+}
+
+const QUEUE_AT = 72
+
+/**
+ * Spotify's swipe right to add to queue: the row follows your finger, a queue icon shows behind it
+ * and fills in (with a tick) once you've gone far enough; let go there to add the song. A short or
+ * mostly vertical drag does nothing, so scrolling stays easy.
+ */
+export function SwipeToQueue({ children, onQueue, color }: { children: ReactNode; onQueue: () => void; color: string }) {
+  const x = useRef(new Animated.Value(0)).current
+  const armed = useRef(false)
+  const cb = useRef(onQueue)
+  cb.current = onQueue
+  const [ready, setReady] = useState(false)
+
+  const responder = useMemo(
+    () =>
+      PanResponder.create({
+        // only a clearly sideways drag to the right
+        onMoveShouldSetPanResponder: (_, g) => g.dx > 14 && Math.abs(g.dx) > Math.abs(g.dy) * 1.8,
+        onPanResponderTerminationRequest: () => false,
+        onPanResponderMove: (_, g) => {
+          const dx = Math.max(0, g.dx)
+          // follows the finger, then resists past the trigger point
+          x.setValue(dx < QUEUE_AT ? dx : QUEUE_AT + (dx - QUEUE_AT) * 0.35)
+          const now = dx >= QUEUE_AT
+          if (now !== armed.current) {
+            armed.current = now
+            setReady(now)
+            if (now) tick()
+          }
+        },
+        onPanResponderRelease: () => {
+          if (armed.current) {
+            cb.current()
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+          }
+          armed.current = false
+          setReady(false)
+          Animated.spring(x, { toValue: 0, useNativeDriver: true, bounciness: 5, speed: 18 }).start()
+        },
+        onPanResponderTerminate: () => {
+          armed.current = false
+          setReady(false)
+          Animated.spring(x, { toValue: 0, useNativeDriver: true }).start()
+        },
+      }),
+    [x],
+  )
+
+  const reveal = x.interpolate({ inputRange: [0, QUEUE_AT], outputRange: [0, 1], extrapolate: 'clamp' })
+  return (
+    <View>
+      <Animated.View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: QUEUE_AT + 40, justifyContent: 'center', paddingLeft: 22, opacity: reveal }}>
+        <View style={{ width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: ready ? color : 'transparent', borderWidth: 2, borderColor: color }}>
+          <Ionicons name="list" size={18} color={ready ? '#000' : color} />
+        </View>
+      </Animated.View>
+      <Animated.View style={{ transform: [{ translateX: x }] }} {...responder.panHandlers}>
+        {children}
+      </Animated.View>
+    </View>
   )
 }

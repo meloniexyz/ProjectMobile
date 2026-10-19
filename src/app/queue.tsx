@@ -11,6 +11,8 @@ export default function Queue() {
   const via = usePlayer((s) => s.via)
   const upcoming = queue.slice(index + 1).map((q, i) => ({ ...q, at: index + 1 + i }))
   const cur = queue[index]
+  // like Spotify: what you queued first, then the rest of what's playing
+  const queuedCount = upcoming.findIndex((q) => !q.queued) < 0 ? upcoming.length : upcoming.findIndex((q) => !q.queued)
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <Header title="Queue" right={upcoming.length ? <Button small kind="ghost" title="Clear" onPress={clearUpcoming} /> : null} />
@@ -38,12 +40,18 @@ export default function Queue() {
                 </View>
               </View>
               <Txt size={15} weight="800" style={{ marginTop: 18 }}>
-                Next up
+                {queuedCount ? 'Next in queue' : 'Next up'}
               </Txt>
             </View>
           ) : null
         }
-        renderItem={({ item }) => (
+        renderItem={({ item, index: i }) => (
+          <>
+          {queuedCount && i === queuedCount ? (
+            <Txt size={15} weight="800" style={{ paddingHorizontal: ui.pad, marginTop: 14, marginBottom: 6 }}>
+              Next up
+            </Txt>
+          ) : null}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`Play ${item.track.title}`}
@@ -61,6 +69,7 @@ export default function Queue() {
             </View>
             <IconButton name="remove-circle-outline" size={22} color={c.text2} label={`Remove ${item.track.title}`} onPress={() => removeAt(item.at)} />
           </Pressable>
+          </>
         )}
         ListEmptyComponent={
           <Txt tone="text2" style={{ padding: ui.pad }}>

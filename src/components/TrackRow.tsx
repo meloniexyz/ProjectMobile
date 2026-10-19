@@ -5,7 +5,7 @@ import { fmtTime } from '../core/format'
 import { useStore } from '../core/store'
 import { cacheStore, isDownloaded } from '../lib/audioCache'
 import { addToQueue, availableNow, playTracks, usePlayer } from '../lib/player'
-import { Swipeable } from './Swipe'
+import { SwipeToQueue } from './Swipe'
 import { useConnection } from '../lib/net'
 import { useColors, ui } from '../lib/theme'
 import { openTrackSheet } from '../lib/ui'
@@ -65,20 +65,24 @@ export function TrackRow({
   const available = availableNow(track)
   return (
     // swipe right: add to queue (like Spotify)
-    <Swipeable onRight={() => addToQueue([track])}>
+    <SwipeToQueue color={c.accent} onQueue={() => addToQueue([track])}>
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${track.title} by ${track.artist}`}
       testID={`track-${index ?? 0}`}
       onPress={onPress}
       onLongPress={() => openTrackSheet(track, { playlistId })}
+      // no flash on rows you just scroll past
+      unstable_pressDelay={70}
+      delayLongPress={380}
       style={({ pressed }) => ({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
         paddingHorizontal: ui.pad,
         paddingVertical: 7,
-        backgroundColor: pressed ? c.hover : 'transparent',
+        // solid, so the queue icon behind only shows while you swipe
+        backgroundColor: pressed ? c.hover : c.bg,
         opacity: available ? 1 : 0.38,
       })}
     >
@@ -101,7 +105,7 @@ export function TrackRow({
       </View>
       <IconButton name="ellipsis-horizontal" size={20} color={c.text2} label={`More for ${track.title}`} onPress={() => openTrackSheet(track, { playlistId })} />
     </Pressable>
-    </Swipeable>
+    </SwipeToQueue>
   )
 }
 
