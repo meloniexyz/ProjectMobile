@@ -185,6 +185,26 @@ export default function Home() {
         </View>
       )}
 
+      {(playlists.length > 0 || connected.length > 0) && (
+        <>
+          <SectionTitle title="Your playlists" />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingHorizontal: ui.pad }}>
+            {playlists.map((p) => (
+              <Card
+                key={p.id}
+                title={p.name}
+                sub="ProjectM"
+                artwork={p.cover ?? p.tracks[0]?.artwork}
+                onPress={() => router.push({ pathname: '/playlist/[id]', params: { id: p.id } })}
+              />
+            ))}
+            {connected.map((s) => (
+              <RemotePlaylistRail key={s} source={s} />
+            ))}
+          </ScrollView>
+        </>
+      )}
+
       {(top.length > 0 || accounts.spotify?.connected) && (
         <>
           <SectionTitle title="Top songs" />
@@ -230,25 +250,6 @@ export default function Home() {
         </>
       ) : null}
 
-      {(playlists.length > 0 || connected.length > 0) && (
-        <>
-          <SectionTitle title="Your playlists" />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingHorizontal: ui.pad }}>
-            {playlists.map((p) => (
-              <Card
-                key={p.id}
-                title={p.name}
-                sub="ProjectM"
-                artwork={p.cover ?? p.tracks[0]?.artwork}
-                onPress={() => router.push({ pathname: '/playlist/[id]', params: { id: p.id } })}
-              />
-            ))}
-            {connected.map((s) => (
-              <RemotePlaylistRail key={s} source={s} />
-            ))}
-          </ScrollView>
-        </>
-      )}
     </ScrollView>
   )
 }
