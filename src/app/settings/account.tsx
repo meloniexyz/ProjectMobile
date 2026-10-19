@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { Alert, KeyboardAvoidingView, ScrollView, TextInput, View } from 'react-native'
 import { Button, Header, Txt } from '../../components/ui'
+import { HandleInput, maskEmail, ProfileCard } from '../../components/Profile'
 import type { AccountDevice } from '../../core/account'
 import { useStore } from '../../core/store'
 import { changePassword, deleteAccount, devices, logIn, logOut, ownerReset, recover, removeDevice, signUp, syncNow, syncStore } from '../../lib/sync'
@@ -109,6 +110,9 @@ function useAction() {
 
 function Form({ mode, setMode, needsLogin, email: knownEmail }: { mode: Mode; setMode: (m: Mode | null) => void; needsLogin?: boolean; email?: string }) {
   const [email, setEmail] = useState(knownEmail ?? '')
+  const [handle, setHandle] = useState('')
+  const [validHandle, setValidHandle] = useState<string | null>(null)
+  const [displayName, setDisplayName] = useState('')
   const [password, setPassword] = useState('')
   const [again, setAgain] = useState('')
   const [code, setCode] = useState('')
@@ -126,15 +130,17 @@ function Form({ mode, setMode, needsLogin, email: knownEmail }: { mode: Mode; se
         </Txt>
         <Input label="Email" value={email} onChange={setEmail} email testID="account-email" />
         <Input label="Password" value={password} onChange={setPassword} secure hint={password && password.length < 8 ? 'At least 8 characters' : undefined} testID="account-password" />
+        <HandleInput value={handle} onChange={setHandle} onValid={setValidHandle} testID="account-handle" />
+        <Input label="Display name (optional)" value={displayName} onChange={setDisplayName} />
         <Input label="Password again" value={again} onChange={setAgain} secure hint={again && again !== password ? "Doesn't match" : undefined} testID="account-password-again" />
         <ErrorBox text={error} />
         <Button
           title="Create account"
           busy={busy}
-          disabled={!email || password.length < 8 || password !== again}
+          disabled={!email || !validHandle || password.length < 8 || password !== again}
           onPress={() =>
             run(async () => {
-              const { recoveryCode } = await signUp(email, password)
+              const { recoveryCode } = await signUp(email, password, validHandle!, displayName.trim())
               setMode({ code: recoveryCode })
             })
           }
@@ -322,11 +328,34 @@ function LoggedIn({ setMode }: { setMode: (m: Mode | null) => void }) {
   useEffect(() => {
     void load()
   }, [])
+  const [showEmail, setShowEmail] = useState(false)
   return (
     <>
+      {st.profile ? (
+        <ProfileCard
+          profile={st.profile}
+          actions={
+            <Button small kind="secondary" title={st.profile.handle ? 'Edit profile' : 'Pick a username'} onPress={() => router.push({ pathname: '/settings/profile', params: st.profile?.handle ? {} : { pick: '1' } })} />
+          }
+        />
+      ) : null}
+      <Card>
+        <Txt size={16} weight="800">
+          Email
+        </Txt>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <Txt tone="text2" size={14} style={{ flex: 1 }}>
+            {st.email ? (showEmail ? st.email : maskEmail(st.email)) : ''}
+          </Txt>
+          <Button small kind="ghost" title={showEmail ? 'Hide' : 'Show'} onPress={() => setShowEmail((v) => !v)} />
+        </View>
+        <Txt tone="text3" size={12}>
+          Only you see it. Your profile shows your @username instead.
+        </Txt>
+      </Card>
       <Card>
         <Txt size={18} weight="800">
-          {st.email}
+          Sync
         </Txt>
         <Txt tone={st.error ? 'text' : 'text2'} size={14} style={st.error ? { color: '#ff5d6c' } : undefined}>
           {st.error

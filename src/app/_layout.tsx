@@ -4,8 +4,9 @@ import { DarkTheme, router, Stack, ThemeProvider } from 'expo-router'
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold, useFonts } from '@expo-google-fonts/inter'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
-import { useEffect, useMemo } from 'react'
-import { View } from 'react-native'
+import { Image } from 'expo-image'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Animated, View } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { GlobalPlayingBar } from '../components/GlobalPlayingBar'
 import { SaveSheet, Toasts, TrackSheet } from '../components/Overlays'
@@ -15,9 +16,44 @@ import { dataDir } from '../lib/storage'
 import { syncStore } from '../lib/sync'
 import { offerUpdate } from '../lib/update'
 import { useColors } from '../lib/theme'
+import { useLogo } from '../lib/logo'
 
 SplashScreen.preventAutoHideAsync().catch(() => {})
 boot()
+
+/**
+ * The launch screen: iOS's own (built into the app, so it can't follow your settings) is plain black;
+ * this shows the logo you picked, in your colour, while the app starts, then fades away.
+ */
+function LaunchLogo() {
+  const logo = useLogo()
+  const fade = useRef(new Animated.Value(1)).current
+  const [done, setDone] = useState(false)
+  useEffect(() => {
+    Animated.timing(fade, { toValue: 0, duration: 260, delay: 650, useNativeDriver: true }).start(() => setDone(true))
+  }, [])
+  if (done) return null
+  return (
+    <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#000000', alignItems: 'center', justifyContent: 'center', opacity: fade }}>
+      <Image source={logo} style={{ width: 120, height: 120 }} accessibilityLabel="ProjectM" />
+    </Animated.View>
+  )
+}
+
+/** An account from before usernames: ask for one, once per launch. */
+function usePickHandlePrompt() {
+  useEffect(() => {
+    let asked = false
+    const check = () => {
+      const st = syncStore.get()
+      if (asked || !st.loggedIn || !st.profile || st.profile.handle) return
+      asked = true
+      setTimeout(() => router.push({ pathname: '/settings/profile', params: { pick: '1' } }), 800)
+    }
+    check()
+    return syncStore.subscribe(check)
+  }, [])
+}
 
 export default function RootLayout() {
   const c = useColors()
@@ -27,6 +63,7 @@ export default function RootLayout() {
     () => ({ ...DarkTheme, colors: { ...DarkTheme.colors, background: c.bg, card: c.bg, text: c.text, border: c.line, primary: c.accent } }),
     [c],
   )
+  usePickHandlePrompt()
   useEffect(() => {
     SplashScreen.hideAsync().catch(() => {})
     // automated test hook: the CI drops this file into the app's data folder before launch
@@ -73,6 +110,7 @@ export default function RootLayout() {
           <TrackSheet />
           <SaveSheet />
           <Toasts />
+          <LaunchLogo />
           <StatusBar style="light" />
         </View>
       </ThemeProvider>

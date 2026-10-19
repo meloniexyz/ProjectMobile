@@ -2,6 +2,7 @@ import Constants from 'expo-constants'
 import { File } from 'expo-file-system'
 import { fetch as expoFetch } from 'expo/fetch'
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator'
+import * as ImagePicker from 'expo-image-picker'
 import { AppState } from 'react-native'
 import * as account from '../core/account'
 import { fromB64, setPbkdf2, toB64 } from '../core/keys'
@@ -25,6 +26,25 @@ export interface ProjectMAccountStatus {
   error?: string
   /** logged out by the server (password changed elsewhere, removed from the devices list) */
   needsLogin?: boolean
+  /** @username, display name, pictures (files on this phone), colours, About me */
+  profile?: LocalProfile
+}
+
+/** A profile ready to show: pictures are file addresses on this phone. Yours or someone else's. */
+export interface ShownProfile {
+  handle: string | null
+  displayName: string
+  avatar: string | null
+  banner: string | null
+  colors: [string, string] | null
+  bio: string
+  memberSince: number
+}
+
+/** Your own profile, plus the server hashes of your pictures (to notice changes). */
+export interface LocalProfile extends ShownProfile {
+  avatarHash: string | null
+  bannerHash: string | null
 }
 
 const SESSION = 'projectm-account'
@@ -34,6 +54,8 @@ const deletedFile = new JsonFile<Record<string, number>>('deleted-playlists.json
 const deviceFile = new JsonFile<{ id?: string }>('device.json', {})
 /** local cover file <-> uploaded cover (projectm-cover:<sha256>) */
 const coverMap = new JsonFile<Record<string, string>>('cover-map.json', {})
+/** the last profile seen, so it shows straight away (also offline) */
+const profileFile = new JsonFile<LocalProfile | null>('account-profile.json', null)
 
 export const syncStore = createStore<ProjectMAccountStatus>({ loggedIn: false, syncing: false })
 
@@ -59,7 +81,7 @@ export function initSync() {
   if (raw) {
     try {
       session = JSON.parse(raw) as AccountSession
-      set({ loggedIn: true, email: session.email })
+      set({ loggedIn: true, email: session.email, profile: profileFile.get() ?? undefined })
       void syncNow()
     } catch {
       // unreadable: stay logged out
@@ -91,8 +113,8 @@ async function begin(s: AccountSession) {
 
 // ---------- account actions (Settings → Account) ----------
 
-export async function signUp(email: string, password: string) {
-  const { session: s, recoveryCode } = await account.signUp(email, password, device())
+export async function signUp(email: string, password: string, handle: string, displayName: string) {
+  const { session: s, recoveryCode } = await account.signUp(email, password, device(), { handle, displayName })
   await begin(s)
   return { recoveryCode }
 }
@@ -129,7 +151,8 @@ export async function logOut() {
   const s = session
   session = null
   await secrets.set(SESSION, null)
-  set({ loggedIn: false, email: undefined, syncing: false, lastSync: undefined, error: undefined, needsLogin: false })
+  set({ loggedIn: false, email: undefined, syncing: false, lastSync: undefined, error: undefined, needsLogin: false, profile: undefined })
+  profileFile.set(null, true)
   await forgetAccountSignIns()
   if (s) await account.logOut(s)
 }
@@ -204,10 +227,114 @@ async function run() {
     if (m.localChanged) setSyncedPlaylists(await incoming(m.playlists, s))
     if (m.upload) again = true
     await guard(syncExtras(s))
+    await guard(refreshProfile(s))
     set({ syncing: false, lastSync: Date.now(), error: undefined })
   } catch (e) {
     if (session) set({ syncing: false, error: (e as Error).message })
   }
+}
+
+// ---------- profile ----------
+
+/** Fetches the account's profile and downloads changed pictures once. */
+async function refreshProfile(s: AccountSession) {
+  await applyProfile(s, (await account.accountInfo(s)).profile)
+}
+
+async function applyProfile(s: AccountSession, p: account.Profile) {
+  const cur = syncStore.get().profile
+  const picture = async (kind: account.ProfileImage) => {
+    const hash = p[kind]
+    if (!hash) return null
+    const mine = cur?.[kind]
+    if (cur?.[`${kind}Hash`] === hash && mine && new File(mine).exists) return mine
+    const got = await account.downloadProfileImage(s, kind, hash).catch(() => null)
+    return got ? saveCoverBytes(got.bytes, got.type) : null
+  }
+  const next: LocalProfile = {
+    handle: p.handle,
+    displayName: p.displayName,
+    colors: p.colors,
+    bio: p.bio,
+    memberSince: p.memberSince,
+    avatarHash: p.avatar,
+    avatar: await picture('avatar'),
+    bannerHash: p.banner,
+    banner: await picture('banner'),
+  }
+  if (JSON.stringify(next) !== JSON.stringify(cur)) {
+    profileFile.set(next, true)
+    set({ profile: next })
+  }
+}
+
+export const handleAvailable = (h: string) => account.handleAvailable(h)
+
+export async function updateProfile(patch: { handle?: string; displayName?: string; colors?: [string, string] | null; bio?: string }) {
+  const s = need()
+  await applyProfile(s, await guard(account.updateProfile(s, patch)))
+}
+
+/**
+ * Pick a photo (square, 256 px) or banner (5:2 like Discord, 960x384) from the phone's photos;
+ * false when cancelled.
+ */
+export async function pickProfileImage(kind: account.ProfileImage) {
+  const s = need()
+  const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: kind === 'banner' ? [5, 2] : [1, 1], quality: 0.9 })
+  if (res.canceled || !res.assets[0]) return false
+  const [w, h] = kind === 'banner' ? [960, 384] : [256, 256]
+  const image = await ImageManipulator.manipulate(res.assets[0].uri).resize({ width: w, height: h }).renderAsync()
+  const out = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.86 })
+  const file = new File(out.uri)
+  const bytes = await file.bytes()
+  const hash = await guard(account.uploadProfileImage(s, kind, bytes, 'image/jpeg'))
+  const local = saveCoverBytes(bytes, 'image/jpeg')
+  file.delete()
+  const next = { ...syncStore.get().profile!, [kind]: local, [`${kind}Hash`]: hash }
+  profileFile.set(next, true)
+  set({ profile: next })
+  return true
+}
+
+export async function removeProfileImage(kind: account.ProfileImage) {
+  await guard(account.removeProfileImage(need(), kind))
+  const next = { ...syncStore.get().profile!, [kind]: null, [`${kind}Hash`]: null }
+  profileFile.set(next, true)
+  set({ profile: next })
+}
+
+// ---------- other people (Search → ProjectM) ----------
+
+/** pictures of other people already downloaded: hash -> file */
+const seen = new Map<string, string>()
+
+async function shown(s: AccountSession, u: account.PublicProfile): Promise<ShownProfile> {
+  const picture = async (kind: account.ProfileImage) => {
+    const hash = u[kind]
+    if (!hash) return null
+    const known = seen.get(hash)
+    if (known) return known
+    const got = await account.downloadUserImage(s, u.handle, kind, hash).catch(() => null)
+    if (!got) return null
+    const local = saveCoverBytes(got.bytes, got.type)
+    seen.set(hash, local)
+    return local
+  }
+  const [avatar, banner] = await Promise.all([picture('avatar'), picture('banner')])
+  return { handle: u.handle, displayName: u.displayName, colors: u.colors, bio: u.bio, memberSince: u.memberSince, avatar, banner }
+}
+
+/** People on ProjectM by @username or name (photos only; banners load on their profile). */
+export async function searchPeople(query: string) {
+  const s = need()
+  const list = await guard(account.searchUsers(s, query))
+  return Promise.all(list.map((u) => shown(s, { ...u, banner: null })))
+}
+
+export async function person(handle: string) {
+  const s = need()
+  return shown(s, await guard(account.getUser(s, handle)))
 }
 
 // ---------- covers picked from photos ----------

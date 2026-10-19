@@ -8,6 +8,7 @@ import { norm } from '../../core/format'
 import { useStore } from '../../core/store'
 import { TrackList } from '../../components/TrackRow'
 import { Chip, Empty, ErrorText, Icon, IconButton, Spinner, Txt } from '../../components/ui'
+import { PeopleResults } from '../../components/Profile'
 import { accountStore } from '../../lib/accounts'
 import { libStore } from '../../lib/library'
 import { canStream, useConnection } from '../../lib/net'
@@ -22,7 +23,8 @@ export default function Search() {
   const params = useLocalSearchParams<{ q?: string }>()
   const [text, setText] = useState(params.q ?? '')
   const [query, setQuery] = useState(params.q ?? '')
-  const [source, setSource] = useState<SourceId | 'all'>('youtube')
+  // 'projectm': people on ProjectM, next to the music platforms
+  const [source, setSource] = useState<SourceId | 'all' | 'projectm'>('youtube')
   // Songs, or artists / playlists / profiles on the chosen platform (or all of them)
   const [tab, setTab] = useState<'songs' | EntityKind>('songs')
   const [results, setResults] = useState<Track[] | null>(null)
@@ -54,7 +56,7 @@ export default function Search() {
   }, [local, query])
 
   useEffect(() => {
-    if (!query || source === 'local' || source === 'all' || tab !== 'songs') {
+    if (!query || source === 'local' || source === 'all' || source === 'projectm' || tab !== 'songs') {
       setResults(null)
       setError(null)
       return
@@ -88,7 +90,7 @@ export default function Search() {
   }, [query, source])
 
   const shown = source === 'local' ? localResults : (results ?? [])
-  const entitySources = source === 'all' ? (['spotify', 'youtube', 'soundcloud'] as SourceId[]).filter((s) => s !== 'spotify' || spotifyOn) : source === 'local' ? [] : [source]
+  const entitySources = source === 'all' ? (['spotify', 'youtube', 'soundcloud'] as SourceId[]).filter((s) => s !== 'spotify' || spotifyOn) : source === 'local' || source === 'projectm' ? [] : [source]
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg, paddingTop: insets.top + 8 }}>
@@ -116,7 +118,9 @@ export default function Search() {
         {sources.map((s) => (
           <Chip key={s} label={SOURCES[s].short} color={SOURCES[s].color} active={source === s} onPress={() => setSource(s)} />
         ))}
+        <Chip label="ProjectM" color={c.accent} active={source === 'projectm'} onPress={() => setSource('projectm')} />
       </ScrollView>
+      {source === 'projectm' ? null : (
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }} contentContainerStyle={{ gap: 8, paddingHorizontal: ui.pad, paddingBottom: 6 }}>
         <Chip
           label="Songs"
@@ -130,7 +134,10 @@ export default function Search() {
           <Chip key={t.kind} label={t.label} active={tab === t.kind} onPress={() => setTab(t.kind)} />
         ))}
       </ScrollView>
-      {tab !== 'songs' ? (
+      )}
+      {source === 'projectm' ? (
+        <PeopleResults query={query} />
+      ) : tab !== 'songs' ? (
         <EntityResults query={query} kind={tab} sources={entitySources} />
       ) : (
         <>

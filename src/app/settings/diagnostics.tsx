@@ -237,10 +237,18 @@ async function runAll(report: (r: Result) => void, cross?: CrossCheck) {
     // talks to the server directly; this phone's own login is not touched
     const email = `diag-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@example.com`
     const dev = (n: string) => ({ id: `diag-${n}-${Math.random().toString(36).slice(2, 10)}`, name: `Diagnostics ${n}`, platform: 'ios' as const })
-    const { session: a } = await account.signUp(email, 'diagnostics-pass', dev('a'))
+    const handle = `diag_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`
+    const { session: a } = await account.signUp(email, 'diagnostics-pass', dev('a'), { handle, displayName: 'Diagnostics' })
     try {
       const b = await account.logIn(email, 'diagnostics-pass', dev('b'))
       if (b.accountKey !== a.accountKey) throw new Error('second device got a different key')
+      // profile: the other device sees it, and people search finds it (without the email)
+      await account.updateProfile(a, { bio: 'diag', colors: ['#112233', '#445566'] })
+      const p = (await account.accountInfo(b)).profile
+      if (p.handle !== handle || p.bio !== 'diag' || p.colors?.[0] !== '#112233') throw new Error(`profile didn't reach the second device (${JSON.stringify(p)})`)
+      const found = await account.searchUsers(b, handle)
+      if (!found.some((u) => u.handle === handle)) throw new Error('people search did not find the account')
+      if (JSON.stringify(found).includes('@example.com')) throw new Error('people search showed an email')
       const t = { uid: 'spotify:diag', source: 'spotify', id: 'diag', title: 'Şarkı 😀', artist: 'a', album: 'b', duration: 1 } as const
       const cover = await account.uploadCover(a, new Uint8Array([0xff, 0xd8, 0xff, 1, 2, 3]), 'image/jpeg')
       await account.syncPlaylists(a, () => ({ playlists: [{ id: 'diag-a', name: 'A', tracks: [t], createdAt: 1, updatedAt: Date.now(), cover }], deleted: {} }))
@@ -270,6 +278,7 @@ async function runAll(report: (r: Result) => void, cross?: CrossCheck) {
       const song = getPlaylists().flatMap((p) => p.tracks).find((t) => t.id === 'ci-pc-file')
       if (!song || !localUriFor(song)) missing.push('local song file')
       if (songMatches.get()['spotify:ci-match']?.id !== '199428706') missing.push('song pick')
+      if (accountSync.syncStore.get().profile?.displayName !== 'CI PC') missing.push('profile')
       if (missing.length) throw new Error(`didn't arrive: ${missing.join(', ')}`)
       // the phone plays the PC's pick for that Spotify song, not one of its own
       const ci: Track = { uid: 'spotify:ci-match', source: 'spotify', id: 'ci-match', title: 'One More Time', artist: 'Daft Punk', album: 'Discovery', duration: 320 }
@@ -279,7 +288,7 @@ async function runAll(report: (r: Result) => void, cross?: CrossCheck) {
       await accountSync.syncNow()
       await accountSync.logOut()
       if (soundcloud.syncedProfile()) throw new Error('log out kept the SoundCloud profile that came from the account')
-      return "got the PC's playlist, look, history, SoundCloud, local song and song pick (and played that pick); sent a playlist back; log out removed the sign-in"
+      return "got the PC's playlist, look, history, SoundCloud, local song, song pick (and played it) and profile; sent a playlist back; log out removed the sign-in"
     })
   }
 

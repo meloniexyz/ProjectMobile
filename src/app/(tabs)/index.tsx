@@ -8,6 +8,7 @@ import type { RemotePlaylist, SourceId, Track } from '../../core/types'
 import { useStore } from '../../core/store'
 import { Artwork, Chip, Icon, IconButton, SectionTitle, SourceIcon, Txt } from '../../components/ui'
 import { EntityTile } from '../../components/EntityList'
+import { AccountAvatar } from '../../components/Profile'
 import { newReleases } from '../../lib/sources'
 import type { Entity } from '../../core/types'
 import { ACCOUNT_SOURCES, accountStore, fetchers, keys, useList } from '../../lib/accounts'
@@ -26,22 +27,17 @@ function AccountButton() {
   const c = useColors()
   const st = useStore(syncStore, (s) => s)
   const email = st.loggedIn || st.needsLogin ? st.email : undefined
+  const name = st.profile?.displayName || (st.profile?.handle ? `@${st.profile.handle}` : undefined)
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={st.loggedIn && email ? `Account, ${email}` : 'Account'}
+      accessibilityLabel={st.loggedIn && name ? `Account, ${name}` : 'Account'}
       testID="home-account"
       onPress={() => router.push('/settings/account')}
       hitSlop={6}
-      style={{ width: 32, height: 32, marginHorizontal: 4, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: email ? c.accent : 'transparent' }}
+      style={{ width: 32, height: 32, marginHorizontal: 4, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}
     >
-      {email ? (
-        <Txt size={15} weight="800" style={{ color: c.accentInk }}>
-          {email[0]!.toUpperCase()}
-        </Txt>
-      ) : (
-        <Icon name="person-circle-outline" size={28} color={c.text} />
-      )}
+      {email && st.profile ? <AccountAvatar profile={st.profile} size={32} /> : <Icon name="person-circle-outline" size={28} color={c.text} />}
       {st.needsLogin || (st.loggedIn && st.error) ? (
         <View style={{ position: 'absolute', top: -1, right: -1, width: 10, height: 10, borderRadius: 5, backgroundColor: '#f5a524', borderWidth: 2, borderColor: c.bg }} />
       ) : null}

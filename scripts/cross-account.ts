@@ -11,7 +11,7 @@ async function main() {
   if (step === 'setup') {
     const email = `ci-cross-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@example.com`
     const password = `ci-${Math.random().toString(36).slice(2)}-pass`
-    const { session } = await signUp(email, password, device)
+    const { session } = await signUp(email, password, device, { handle: `ci_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, displayName: 'CI PC' })
     const track = { uid: 'spotify:4uLU6hMCjMI75M1A2tKUQC', source: 'spotify' as const, id: '4uLU6hMCjMI75M1A2tKUQC', title: 'Never Gonna Give You Up', artist: 'Rick Astley', album: 'Whenever You Need Somebody', duration: 213 }
     const local = { uid: 'local:ci-pc-file', source: 'local' as const, id: 'ci-pc-file', title: 'CI Local Song', artist: 'ProjectM CI', album: 'CI', duration: 5 }
     await syncPlaylists(session, () => ({ playlists: [{ id: 'ci-from-pc', name: 'From PC (CI)', tracks: [track, local], createdAt: Date.now(), updatedAt: Date.now() }], deleted: {} }))
