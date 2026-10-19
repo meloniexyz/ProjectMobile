@@ -119,7 +119,7 @@ export function TrackSheet() {
         {track.source === 'spotify' ? (
           <SheetItem icon="refresh-outline" title="Wrong version? Find it again" onPress={act(() => {
             forgetMatch(track.uid)
-            toast('Next play searches YouTube Music and SoundCloud again')
+            toast('Next play searches YouTube Music and SoundCloud again, on all your devices')
           })} />
         ) : null}
         {playlistId ? <SheetItem icon="trash-outline" title="Remove from this playlist" danger onPress={act(() => removeFromPlaylist(playlistId, track.uid))} /> : null}

@@ -8,7 +8,7 @@ import { historyHooks, historyStore, replaceHistory } from './history'
 import { getPlaylists, localUriFor, saveReceivedSong } from './library'
 import { onWifi } from './net'
 import { getSettings, updateSettings, type MobileSettings } from './settings'
-import { soundcloud, spotify, youtube } from './sources'
+import { songMatches, soundcloud, spotify, youtube } from './sources'
 import { JsonFile } from './storage'
 
 /**
@@ -60,6 +60,7 @@ export async function syncExtras(session: AccountSession) {
   await syncSettings(session, 'sound', SOUND_KEYS)
   await syncHistory(session)
   await syncPlatforms(session)
+  await syncMatches(session)
   await syncRelay(session).catch((e) => console.warn('[account] relay', e))
 }
 
@@ -109,6 +110,12 @@ async function syncHistory(session: AccountSession) {
       sendAll: false,
     },
   })
+}
+
+/** Which recording each Spotify song plays from: the same on every device. */
+async function syncMatches(session: AccountSession) {
+  const r = await account.syncMatches(session, () => songMatches.get())
+  if (Object.keys(r.take).length) songMatches.set({ ...songMatches.get(), ...r.take })
 }
 
 async function syncPlatforms(session: AccountSession) {

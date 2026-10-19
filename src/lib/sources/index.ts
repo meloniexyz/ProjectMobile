@@ -1,3 +1,4 @@
+import type { SongMatch } from '../../core/account'
 import type { Entity, EntityKind, EntityPage, SourceId, Track } from '../../core/types'
 import { getSettings, type Quality } from '../settings'
 import { JsonFile } from '../storage'
@@ -37,8 +38,29 @@ export function search(source: SourceId, q: string, limit = 30): Promise<Track[]
 const CODEC_EFFICIENCY = { aac: 1.15, mp3: 1 } as const
 const effective = (p: StreamPlan) => p.kbps * CODEC_EFFICIENCY[p.codec]
 
-/** Matches found earlier, so a Spotify song is only searched for once (saves data). */
-const matches = new JsonFile<Record<string, { source: 'youtube' | 'soundcloud'; track: Track }>>('alternatives-v2.json', {}) // v2: matched with the explicit/clean rules
+/**
+ * The recording each Spotify song plays from. Shared through the ProjectM account: the first pick on
+ * any device is kept, so the phone and the PC play the same version (a "Wrong version?" fix replaces it everywhere).
+ */
+export const songMatches = new JsonFile<Record<string, SongMatch>>('song-matches.json', {})
+/** older phone-only picks (before they were shared) */
+const oldMatches = new JsonFile<Record<string, { source: 'youtube' | 'soundcloud'; track: Track }>>('alternatives-v2.json', {})
+/** songs marked "wrong version": uid -> the recording to avoid */
+const redo = new JsonFile<Record<string, string>>('song-matches-redo.json', {})
+/** something new to share with the account (set by sync.ts) */
+export const matchHooks = { changed: () => {} }
+
+/** Moves the phone's older picks over once (on start). */
+export function initMatches() {
+  const old = oldMatches.get()
+  if (Object.keys(old).length && !Object.keys(songMatches.get()).length) {
+    const now = Date.now()
+    songMatches.set(Object.fromEntries(Object.entries(old).map(([uid, m]) => [uid, toMatch(m.source, m.track, now)])))
+  }
+}
+
+const toMatch = (source: 'youtube' | 'soundcloud', t: Track, at: number): SongMatch => ({ source, id: t.id, title: t.title, artist: t.artist, duration: t.duration, artwork: t.artwork, at })
+const matchTrack = (m: SongMatch): Track => ({ uid: `${m.source}:${m.id}`, source: m.source, id: m.id, title: m.title, artist: m.artist, album: '', duration: m.duration, artwork: m.artwork })
 
 export interface Resolved {
   plan: StreamPlan
@@ -55,7 +77,7 @@ export const youtubeBlocked = () => Date.now() < youtubeBlockedUntil
 type Candidate = { id: 'youtube' | 'soundcloud'; track: Track; plan: StreamPlan; score: number }
 
 /** The best streamable copy of a song on one service (tries the 3 closest matches), or a reason why not. */
-async function copyOn(id: 'youtube' | 'soundcloud', target: { title: string; artist: string; duration: number }, quality: Quality, why: string[]) {
+async function copyOn(id: 'youtube' | 'soundcloud', target: { title: string; artist: string; duration: number }, quality: Quality, why: string[], skip?: string) {
   const name = SOURCES[id].short
   if (id === 'youtube' && youtubeBlocked()) {
     why.push(`${name}: blocked on this connection (VPN?)`)
@@ -72,7 +94,7 @@ async function copyOn(id: 'youtube' | 'soundcloud', target: { title: string; art
     return null
   }
   // the closest copy may not be streamable (e.g. label uploads that only SoundCloud's app can play)
-  for (const m of list.slice(0, 3)) {
+  for (const m of list.filter((x) => !skip || x.track.id !== skip).slice(0, 3)) {
     try {
       return { id, track: m.track, plan: await src.plan(m.track.id, quality), score: m.score } as Candidate
     } catch (e) {
@@ -97,33 +119,44 @@ export async function resolvePlan(track: Track, quality: Quality): Promise<Resol
   if (track.source === 'soundcloud') return { plan: await soundcloud.plan(track.id, quality), via: null }
   const target = { title: track.title, artist: track.artist, duration: track.duration }
   if (track.source === 'youtube') {
+    let first: unknown = new Error('YouTube refused this connection (often a VPN)')
     if (!youtubeBlocked()) {
       try {
         return { plan: await youtube.plan(track.id, quality), via: null }
       } catch (err) {
-        if (!isBotWall(err)) throw err
-        youtubeBlockedUntil = Date.now() + 10 * 60_000
+        first = err
+        if (isBotWall(err)) youtubeBlockedUntil = Date.now() + 10 * 60_000
       }
     }
+    // last resort: the same recording from SoundCloud (the phone can't play through the Spotify app)
     const why: string[] = []
     const sc = await copyOn('soundcloud', target, quality, why)
-    if (!sc) throw new Error(`YouTube refused this connection (often a VPN), and SoundCloud has no copy (${why.join('; ')})`)
+    if (!sc) throw new Error(`${cleanError(first).message}, and SoundCloud has no copy (${why.join('; ')})`)
     return { plan: sc.plan, via: sc.track }
   }
   if (track.source !== 'spotify') throw new Error('Local songs play from the phone')
 
   const pref = getSettings().spotifySource
-  const known = matches.get()[track.uid]
-  if (known && (pref === 'auto' || known.source === pref) && !(known.source === 'youtube' && youtubeBlocked())) {
-    const src = known.source === 'youtube' ? youtube : soundcloud
-    const plan = await src.plan(known.track.id, quality).catch(() => null)
-    if (plan) return { plan, via: known.track }
+  const avoid = redo.get()[track.uid]
+  const known = avoid !== undefined ? undefined : songMatches.get()[track.uid]
+  if (known) {
+    // the account's pick, whatever this phone's preference: every device plays the same version
+    const via = matchTrack(known)
+    if (!(known.source === 'youtube' && youtubeBlocked())) {
+      const plan = await (known.source === 'youtube' ? youtube : soundcloud).plan(known.id, quality).catch(() => null)
+      if (plan) return { plan, via }
+    }
+    // that recording can't play here right now: the other service fills in, without changing the pick
+    const why: string[] = []
+    const other = await copyOn(known.source === 'youtube' ? 'soundcloud' : 'youtube', target, quality, why)
+    if (other) return { plan: other.plan, via: other.track }
+    throw new Error(`The version this song plays from (${SOURCES[known.source].name}) can't play right now (${why.join('; ')})`)
   }
 
   const why: string[] = []
   let chosen: Candidate | null = null
   if (pref === 'auto') {
-    const found = (await Promise.all((['youtube', 'soundcloud'] as const).map((id) => copyOn(id, target, quality, why)))).filter(
+    const found = (await Promise.all((['youtube', 'soundcloud'] as const).map((id) => copyOn(id, target, quality, why, avoid)))).filter(
       (c): c is Candidate => c !== null,
     )
     found.sort((a, b) => {
@@ -133,18 +166,35 @@ export async function resolvePlan(track: Track, quality: Quality): Promise<Resol
     chosen = found[0] ?? null
   } else {
     const other = pref === 'youtube' ? 'soundcloud' : 'youtube'
-    chosen = (await copyOn(pref, target, quality, why)) ?? (await copyOn(other, target, quality, why))
+    chosen = (await copyOn(pref, target, quality, why, avoid)) ?? (await copyOn(other, target, quality, why, avoid))
+  }
+  const prev = songMatches.get()[track.uid]
+  if (!chosen && avoid !== undefined) {
+    // "wrong version", but there's no other version anywhere: keep playing the one we had
+    const r = { ...redo.get() }
+    delete r[track.uid]
+    redo.set(r)
+    if (prev) return resolvePlan(track, quality)
   }
   if (!chosen) throw new Error(`No playable copy of this Spotify song on YouTube Music or SoundCloud (${why.join('; ')})`)
-  matches.set({ ...matches.get(), [track.uid]: { source: chosen.id, track: chosen.track } })
+  if (!prev || avoid !== undefined) {
+    // a "wrong version" fix replaces the pick on every device; otherwise this is the first pick
+    const m = toMatch(chosen.id, chosen.track, prev?.at ?? Date.now())
+    songMatches.set({ ...songMatches.get(), [track.uid]: avoid !== undefined ? { ...m, fixed: Date.now() } : m })
+    if (avoid !== undefined) {
+      const r = { ...redo.get() }
+      delete r[track.uid]
+      redo.set(r)
+    }
+    matchHooks.changed()
+  }
   return { plan: chosen.plan, via: chosen.track }
 }
 
-/** Forget a remembered match (e.g. it turned out to be the wrong recording). */
+/** "Wrong version": the next play searches again (skipping this recording) and the new pick replaces it on every device. */
 export function forgetMatch(uid: string) {
-  const next = { ...matches.get() }
-  delete next[uid]
-  matches.set(next)
+  const cur = songMatches.get()[uid]
+  redo.set({ ...redo.get(), [uid]: cur?.id ?? '' })
 }
 
 export function cleanError(err: unknown): Error {

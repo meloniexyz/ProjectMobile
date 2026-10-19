@@ -5,7 +5,7 @@ import { initLibrary } from './library'
 import { startNetworkWatch } from './net'
 import { startPlayer } from './player'
 import { initSettings } from './settings'
-import { youtube } from './sources'
+import { initMatches, youtube } from './sources'
 import { ensureDirs } from './storage'
 import { initSync } from './sync'
 import { startAppIconSync } from './logo'
@@ -23,6 +23,7 @@ export function boot() {
   initLibrary()
   initAccounts()
   initDownloads()
+  initMatches()
   startPlayer()
   initSync()
   startAppIconSync()

@@ -68,8 +68,13 @@ interface PotSession {
 const potFile = new JsonFile<PotSession | null>('youtube-session.json', null)
 const potFileServer = new JsonFile<PotSession | null>('youtube-session-server.json', null)
 
-/** How songs are fetched: TV client on a phone-made session, on a YouTube-issued session, or your signed-in account. */
-type StreamMethod = 'tv-simply' | 'tv-simply-server' | 'account'
+/**
+ * How songs are fetched: YouTube's iPhone, YouTube Music or mobile-site app (no token needed), the TV
+ * client on a phone-made or YouTube-issued session, or your signed-in account.
+ */
+type StreamMethod = 'ios' | 'ytmusic' | 'mweb' | 'tv-simply' | 'tv-simply-server' | 'account'
+const PLAIN_CLIENTS = { ios: 'IOS', ytmusic: 'YTMUSIC', mweb: 'MWEB' } as const
+type ClientName = 'TV_SIMPLY' | 'TV' | (typeof PLAIN_CLIENTS)[keyof typeof PLAIN_CLIENTS]
 const methodFile = new JsonFile<{ method?: StreamMethod }>('youtube-method.json', {})
 
 // ---------- shapes ----------
@@ -183,6 +188,8 @@ class YouTube {
   /** streaming clients per connection method */
   private streamClients = new Map<StreamMethod, { visitor: string; yt: Promise<Innertube> }>()
   private accountStreamClient: Promise<Innertube> | null = null
+  /** the iPhone / YouTube Music / mobile-site clients: one plain session */
+  private plainStreamClient: Promise<Innertube> | null = null
   /** your library (TV app sign-in) */
   private authedClient: Promise<Innertube> | null = null
   private userName: string | null = null
@@ -242,7 +249,14 @@ class YouTube {
   }
 
   /** The streaming client for a connection method (cached per session). */
-  private async client(method: StreamMethod): Promise<{ yt: Innertube; token: string | null; clientName: 'TV_SIMPLY' | 'TV' }> {
+  private async client(method: StreamMethod): Promise<{ yt: Innertube; token: string | null; clientName: ClientName }> {
+    if (method === 'ios' || method === 'ytmusic' || method === 'mweb') {
+      this.plainStreamClient ??= Innertube.create({ retrieve_player: true, generate_session_locally: true, cache: diskCache }).catch((err) => {
+        this.plainStreamClient = null
+        throw err
+      })
+      return { yt: await this.plainStreamClient, token: null, clientName: PLAIN_CLIENTS[method] }
+    }
     if (method === 'account') {
       if (!this.saved()) throw new Error('not signed in to YouTube')
       this.accountStreamClient ??= (async () => {
@@ -393,7 +407,7 @@ class YouTube {
 
   /** Connection methods in the order to try: the one that worked last time first. */
   private methodOrder(): StreamMethod[] {
-    const all: StreamMethod[] = ['tv-simply', 'tv-simply-server', ...(this.saved() ? (['account'] as StreamMethod[]) : [])]
+    const all: StreamMethod[] = ['ios', 'ytmusic', 'mweb', 'tv-simply', 'tv-simply-server', ...(this.saved() ? (['account'] as StreamMethod[]) : [])]
     const last = methodFile.get().method
     return last && all.includes(last) ? [last, ...all.filter((m) => m !== last)] : all
   }
@@ -436,9 +450,8 @@ class YouTube {
   /**
    * Where to download a song from. iPhones play AAC (not YouTube's Opus), so the choice is
    * itag 139 (~48 kbps), 140 (~128 kbps) or, rarely, 141 (256 kbps).
-   * If YouTube answers with its "confirm you're not a bot" check, the next connection method is
-   * tried (a session id from YouTube itself, then your signed-in account); the one that works is
-   * remembered.
+   * If one connection method fails for any reason (the bot check, an app YouTube has retired, refused
+   * audio), the next is tried; the one that works is remembered and tried first next time.
    */
   async plan(id: string, quality: Quality): Promise<StreamPlan> {
     let lastErr: unknown
@@ -453,8 +466,7 @@ class YouTube {
         lastErr = err
         const msg = String((err as Error)?.message ?? err)
         if (/audio HTTP 40[13]/.test(msg)) audioRefused++
-        // only the bot check (or a stale session / refused audio) is worth another method; "video unavailable" isn't
-        if (!/confirm you.re not a bot|sign in|403|401|token/i.test(msg)) throw err
+        console.warn('[youtube]', method, msg)
       }
     }
     // every way in gave a song page but no audio: treat it like the bot check, so SoundCloud plays it
@@ -478,7 +490,7 @@ class YouTube {
   /** For diagnostics: what YouTube says to each connection method on this phone. */
   async probeMethods(id: string): Promise<{ method: StreamMethod; ok: boolean; detail: string }[]> {
     const out: { method: StreamMethod; ok: boolean; detail: string }[] = []
-    for (const method of ['tv-simply', 'tv-simply-server', 'account'] as StreamMethod[]) {
+    for (const method of ['ios', 'ytmusic', 'mweb', 'tv-simply', 'tv-simply-server', 'account'] as StreamMethod[]) {
       if (method === 'account' && !this.saved()) {
         out.push({ method, ok: false, detail: 'not signed in (Settings → Accounts → YouTube)' })
         continue
@@ -501,6 +513,7 @@ class YouTube {
     potFile.set(null, true)
     potFileServer.set(null, true)
     this.streamClients.clear()
+    this.plainStreamClient = null
   }
 
   // ---------- account (YouTube's TV sign-in: a code you approve at google.com/device) ----------

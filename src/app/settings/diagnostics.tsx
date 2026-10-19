@@ -20,7 +20,7 @@ import { ensureOnPhone, fileUri, lookup, removeDownload } from '../../lib/audioC
 import { eqFilters } from '../../lib/eq'
 import { getPlayer, playTracks, seek, toggle } from '../../lib/player'
 import { DEFAULT_MOBILE_SETTINGS, getSettings } from '../../lib/settings'
-import { resolvePlan, soundcloud, youtube } from '../../lib/sources'
+import { resolvePlan, songMatches, soundcloud, youtube } from '../../lib/sources'
 import { dataDir } from '../../lib/storage'
 import { useColors, ui } from '../../lib/theme'
 
@@ -83,7 +83,7 @@ async function runAll(report: (r: Result) => void, cross?: CrossCheck) {
     const track: Track = yt
     await run('YouTube connection methods', async () => {
       const r = await youtube.probeMethods(track.id)
-      const names: Record<string, string> = { 'tv-simply': 'TV (phone session)', 'tv-simply-server': 'TV (YouTube session)', account: 'Signed-in account' }
+      const names: Record<string, string> = { ios: 'iPhone app', ytmusic: 'YouTube Music app', mweb: 'Mobile site', 'tv-simply': 'TV (phone session)', 'tv-simply-server': 'TV (YouTube session)', account: 'Signed-in account' }
       const text = r.map((m) => `${m.ok ? '✓' : '✗'} ${names[m.method]}: ${m.detail}`).join('\n')
       if (!r.some((m) => m.ok)) throw new Error(text)
       return text
@@ -269,12 +269,17 @@ async function runAll(report: (r: Result) => void, cross?: CrossCheck) {
       if (soundcloud.syncedProfile()?.username !== 'ci-check') missing.push('SoundCloud profile')
       const song = getPlaylists().flatMap((p) => p.tracks).find((t) => t.id === 'ci-pc-file')
       if (!song || !localUriFor(song)) missing.push('local song file')
+      if (songMatches.get()['spotify:ci-match']?.id !== '199428706') missing.push('song pick')
       if (missing.length) throw new Error(`didn't arrive: ${missing.join(', ')}`)
+      // the phone plays the PC's pick for that Spotify song, not one of its own
+      const ci: Track = { uid: 'spotify:ci-match', source: 'spotify', id: 'ci-match', title: 'One More Time', artist: 'Daft Punk', album: 'Discovery', duration: 320 }
+      const plays = await resolvePlan(ci, 'mid')
+      if (plays.via?.id !== '199428706') throw new Error(`played ${plays.via?.source} ${plays.via?.id} instead of the PC's pick`)
       createPlaylist([], 'From iPhone (CI)')
       await accountSync.syncNow()
       await accountSync.logOut()
       if (soundcloud.syncedProfile()) throw new Error('log out kept the SoundCloud profile that came from the account')
-      return "got the PC's playlist, look, history, SoundCloud and local song; sent a playlist back; log out removed the sign-in"
+      return "got the PC's playlist, look, history, SoundCloud, local song and song pick (and played that pick); sent a playlist back; log out removed the sign-in"
     })
   }
 

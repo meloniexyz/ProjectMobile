@@ -12,6 +12,7 @@ import { mergePlaylists, type SyncDoc } from '../core/sync'
 import type { Playlist } from '../core/types'
 import { forgetAccountSignIns, initExtras, syncExtras } from './accountExtras'
 import { getPlaylists, saveCoverBytes, setSyncedPlaylists } from './library'
+import { matchHooks } from './sources'
 import { JsonFile, secrets } from './storage'
 
 /** ProjectM account on this phone: same playlists as ProjectM on your PCs and other phones (see core/account.ts). */
@@ -49,6 +50,8 @@ export function enableNativeKeys() {
 }
 
 export function initSync() {
+  // a new song pick (which recording a Spotify song plays from) goes to the account a few seconds later
+  matchHooks.changed = playlistsChanged
   account.setAccountFetch(expoFetch as unknown as typeof fetch)
   enableNativeKeys()
   initExtras()
