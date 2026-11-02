@@ -1,0 +1,422 @@
+import * as Crypto from 'expo-crypto'
+import type { AccountStatus, RemotePlaylist, Track, Entity, EntityKind, EntityPage } from '../../core/types'
+import { JsonFile, secrets } from '../storage'
+
+/**
+ * Spotify via the official Web API with your own developer app (PKCE, no secret). The same
+ * Client ID and redirect address as the desktop app work here: the sign-in page opens inside the
+ * app, and we catch the redirect before it goes anywhere.
+ *
+ * Phones can't play Spotify audio inside another app, so Spotify songs play from YouTube Music or
+ * SoundCloud (the closest match, see sources/index.ts).
+ */
+
+export const REDIRECT_URI = 'http://127.0.0.1:43821/callback'
+const SCOPES = [
+  'user-read-private',
+  'user-follow-read', // new releases from the artists you follow
+  'user-library-read',
+  'user-library-modify',
+  'playlist-read-private',
+  'playlist-read-collaborative',
+  'user-top-read',
+  'playlist-modify-private',
+  'playlist-modify-public',
+].join(' ')
+
+const KEY = 'spotify.auth'
+
+interface Saved {
+  clientId?: string
+  refreshToken?: string
+  accessToken?: string
+  expiresAt?: number
+  userName?: string
+}
+
+interface SpArtist {
+  id: string
+  name: string
+  images?: { url: string }[]
+  followers?: { total: number }
+}
+interface SpPlaylist {
+  id: string
+  name: string
+  images?: { url: string }[]
+  owner?: { display_name?: string }
+  tracks?: { total: number }
+}
+interface SpAlbum {
+  id: string
+  name: string
+  images?: { url: string }[]
+  artists?: { name: string }[]
+  album_type?: string
+  release_date?: string
+}
+const compact = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1).replace(/\.0$/, '')}M` : n >= 1e3 ? `${Math.round(n / 1e3)}k` : String(n))
+
+interface ApiTrack {
+  id: string | null
+  name: string
+  duration_ms: number
+  explicit?: boolean
+  is_local?: boolean
+  type?: string
+  artists: { name: string }[]
+  album: { name: string; images?: { url: string; width?: number }[]; release_date?: string }
+  track_number?: number
+  disc_number?: number
+}
+
+/** Spotify covers come in 640/300/64 px; 300 is plenty on a phone (and a third of the data). */
+const pickImage = (images?: { url: string; width?: number }[]) =>
+  images?.find((i) => (i.width ?? 0) <= 320 && (i.width ?? 0) >= 200)?.url ?? images?.[0]?.url
+
+const toTrack = (t: ApiTrack): Track => ({
+  uid: `spotify:${t.id}`,
+  source: 'spotify',
+  id: t.id!,
+  title: t.name,
+  artist: t.artists.map((a) => a.name).join(', ') || 'Unknown Artist',
+  album: t.album?.name || 'Spotify',
+  duration: t.duration_ms / 1000,
+  explicit: t.explicit,
+  artwork: pickImage(t.album?.images),
+  trackNo: t.track_number,
+  discNo: t.disc_number,
+  year: Number(t.album?.release_date?.slice(0, 4)) || undefined,
+})
+
+const playable = (t: ApiTrack | null | undefined): t is ApiTrack => !!t && !!t.id && !t.is_local && (t.type ?? 'track') === 'track'
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+const b64url = (b64: string) => b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+
+function bytesToB64(bytes: Uint8Array) {
+  let s = ''
+  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i])
+  return btoa(s)
+}
+
+export interface SpotifyAuthRequest {
+  url: string
+  state: string
+  verifier: string
+  clientId: string
+}
+
+class Spotify {
+  private refreshing: Promise<string> | null = null
+  /** liked songs on disk: downloaded again only when Spotify reports a change (saves data and API quota) */
+  private likedCache = new JsonFile<{ total: number; newest?: string; tracks: Track[] } | null>('spotify-liked.json', null)
+
+  private saved(): Saved {
+    try {
+      return JSON.parse(secrets.get(KEY) ?? '{}') as Saved
+    } catch {
+      return {}
+    }
+  }
+
+  private async save(s: Saved) {
+    await secrets.set(KEY, JSON.stringify(s))
+  }
+
+  status(): AccountStatus {
+    const s = this.saved()
+    return { clientId: s.clientId ?? null, connected: !!s.refreshToken, userName: s.userName ?? null, redirectUri: REDIRECT_URI }
+  }
+
+  /** For Negusify accounts: the Client ID travels; the sign-in itself stays per device. */
+  syncedClientId() {
+    return this.saved().clientId ?? null
+  }
+
+  async useSyncedClientId(clientId: string | null) {
+    if (clientId && clientId !== this.saved().clientId) await this.save({ ...this.saved(), clientId })
+  }
+
+  async logout() {
+    const { clientId } = this.saved()
+    await this.save({ clientId })
+  }
+
+  /** Builds the consent page address; the sign-in sheet opens it and hands back the redirect. */
+  async beginLogin(clientId: string): Promise<SpotifyAuthRequest> {
+    clientId = clientId.trim() || this.saved().clientId || ''
+    if (!/^[0-9a-f]{32}$/i.test(clientId)) throw new Error("That doesn't look like a Client ID (32 letters/numbers)")
+    const verifier = b64url(bytesToB64(Crypto.getRandomBytes(48)))
+    const challenge = b64url(
+      await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, verifier, { encoding: Crypto.CryptoEncoding.BASE64 }),
+    )
+    const state = b64url(bytesToB64(Crypto.getRandomBytes(12)))
+    const params = new URLSearchParams({
+      client_id: clientId,
+      response_type: 'code',
+      redirect_uri: REDIRECT_URI,
+      code_challenge_method: 'S256',
+      code_challenge: challenge,
+      scope: SCOPES,
+      state,
+    })
+    return { url: `https://accounts.spotify.com/authorize?${params}`, state, verifier, clientId }
+  }
+
+  /** Finishes sign-in with the redirect address the sheet caught. */
+  async finishLogin(req: SpotifyAuthRequest, redirectedTo: string): Promise<AccountStatus> {
+    const u = new URL(redirectedTo)
+    const code = u.searchParams.get('code')
+    if (u.searchParams.get('state') !== req.state || !code) {
+      throw new Error(`Spotify sign-in failed: ${u.searchParams.get('error') ?? 'state mismatch'}`)
+    }
+    const tokens = await this.tokenRequest({
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: REDIRECT_URI,
+      client_id: req.clientId,
+      code_verifier: req.verifier,
+    })
+    await this.save({ clientId: req.clientId, ...tokens })
+    try {
+      const me = await this.api<{ display_name?: string; id: string }>('/me')
+      await this.save({ ...this.saved(), userName: me.display_name || me.id })
+    } catch {
+      // name is cosmetic
+    }
+    return this.status()
+  }
+
+  private async tokenRequest(body: Record<string, string>): Promise<Saved> {
+    const res = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams(body).toString(),
+    })
+    const json = (await res.json()) as { access_token?: string; refresh_token?: string; expires_in?: number; error_description?: string; error?: string }
+    if (!res.ok || !json.access_token) throw new Error(`Spotify rejected the login: ${json.error_description || json.error || res.status}`)
+    return {
+      accessToken: json.access_token,
+      refreshToken: json.refresh_token ?? this.saved().refreshToken,
+      expiresAt: Date.now() + (json.expires_in ?? 3600) * 1000 - 60_000,
+    }
+  }
+
+  private async accessToken(): Promise<string> {
+    const s = this.saved()
+    if (!s.refreshToken || !s.clientId) throw new Error('Spotify is not connected')
+    if (s.accessToken && (s.expiresAt ?? 0) > Date.now()) return s.accessToken
+    this.refreshing ??= this.tokenRequest({ grant_type: 'refresh_token', refresh_token: s.refreshToken, client_id: s.clientId })
+      .then(async (t) => {
+        await this.save({ ...this.saved(), ...t })
+        return t.accessToken!
+      })
+      .finally(() => (this.refreshing = null))
+    return this.refreshing
+  }
+
+  private async api<T>(path: string, init: RequestInit = {}, attempt = 0): Promise<T> {
+    const token = await this.accessToken()
+    const res = await fetch(path.startsWith('http') ? path : `https://api.spotify.com/v1${path}`, {
+      ...init,
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(init.headers as Record<string, string>) },
+    })
+    if (res.status === 401 && attempt === 0) {
+      await this.save({ ...this.saved(), expiresAt: 0 })
+      return this.api(path, init, 1)
+    }
+    if (res.status === 429 && attempt < 3) {
+      await sleep(Math.min(10, Number(res.headers.get('retry-after')) || 1) * 1000)
+      return this.api(path, init, attempt + 1)
+    }
+    if (!res.ok) {
+      let msg = `${res.status}`
+      try {
+        const j = (await res.json()) as { error?: { message?: string; reason?: string } }
+        msg = j.error?.reason || j.error?.message || msg
+      } catch {
+        // no body
+      }
+      if (/QUOTA_EXCEEDED/i.test(msg)) throw new Error("Spotify's request limit for your developer app is used up for now. Try again later.")
+      throw new Error(`Spotify: ${msg}`)
+    }
+    const text = await res.text()
+    return (text ? JSON.parse(text) : undefined) as T
+  }
+
+  private async paged<T>(path: string, max = 10_000): Promise<T[]> {
+    const out: T[] = []
+    let next: string | null = path
+    while (next && out.length < max) {
+      const page: { items: T[]; next: string | null } = await this.api(next)
+      out.push(...page.items)
+      next = page.next
+    }
+    return out
+  }
+
+  async search(query: string, limit = 30): Promise<Track[]> {
+    const pages = await Promise.all(
+      [0, 10, 20].slice(0, Math.ceil(limit / 10)).map((offset) =>
+        this.api<{ tracks: { items: ApiTrack[] } }>(
+          `/search?${new URLSearchParams({ q: query, type: 'track', limit: '10', offset: String(offset) })}`,
+        ).catch(() => ({ tracks: { items: [] as ApiTrack[] } })),
+      ),
+    )
+    const seen = new Set<string>()
+    return pages
+      .flatMap((p) => p.tracks.items)
+      .filter(playable)
+      .filter((t) => !seen.has(t.id!) && !!seen.add(t.id!))
+      .map(toTrack)
+  }
+
+  async top(): Promise<Track[]> {
+    const res = await this.api<{ items: ApiTrack[] }>('/me/top/tracks?limit=30&time_range=short_term')
+    return res.items.filter(playable).map(toTrack)
+  }
+
+  /** Cached liked songs, if any (no network). */
+  cachedLiked() {
+    return this.likedCache.get()?.tracks ?? null
+  }
+
+  async liked(): Promise<Track[]> {
+    const cached = this.likedCache.get()
+    let head: { total: number; items: { added_at?: string }[] }
+    try {
+      head = await this.api('/me/tracks?limit=1')
+    } catch (err) {
+      if (cached) return cached.tracks
+      throw err
+    }
+    const newest = head.items[0]?.added_at
+    if (cached && cached.total === head.total && cached.newest === newest) return cached.tracks
+    const items = await this.paged<{ track: ApiTrack; added_at?: string }>('/me/tracks?limit=50')
+    const tracks = items
+      .filter((i) => playable(i.track))
+      .map((i) => ({ ...toTrack(i.track), likedAt: i.added_at ? Date.parse(i.added_at) : undefined }))
+    this.likedCache.set({ total: head.total, newest, tracks })
+    return tracks
+  }
+
+  async isLiked(ids: string[]): Promise<boolean[]> {
+    const uris = ids.map((id) => `spotify:track:${id}`).join(',')
+    return this.api<boolean[]>(`/me/library/contains?uris=${encodeURIComponent(uris)}`)
+  }
+
+  async setLiked(id: string, liked: boolean) {
+    await this.api(`/me/library?uris=${encodeURIComponent(`spotify:track:${id}`)}`, { method: liked ? 'PUT' : 'DELETE' })
+    this.likedCache.set(null) // next liked() reloads
+  }
+
+  private myId: Promise<string> | null = null
+
+  async playlists(): Promise<RemotePlaylist[]> {
+    this.myId ??= this.api<{ id: string }>('/me')
+      .then((me) => me.id)
+      .catch((err) => {
+        this.myId = null
+        throw err
+      })
+    const [items, me] = await Promise.all([
+      this.paged<{
+        id: string
+        name: string
+        collaborative?: boolean
+        images?: { url: string; width?: number }[] | null
+        owner?: { id?: string; display_name?: string }
+        items?: { total: number }
+        tracks?: { total: number }
+      } | null>('/me/playlists?limit=50'),
+      this.myId.catch(() => ''),
+    ])
+    return items
+      .filter((p) => p !== null)
+      .map((p) => ({
+        id: p!.id,
+        name: p!.name,
+        artwork: pickImage(p!.images ?? undefined),
+        owner: p!.owner?.display_name ?? '',
+        total: p!.items?.total ?? p!.tracks?.total ?? 0,
+        editable: !!p!.collaborative || (!!me && p!.owner?.id === me),
+      }))
+  }
+
+  async addToPlaylist(playlistId: string, trackId: string) {
+    await this.api(`/playlists/${encodeURIComponent(playlistId)}/items`, {
+      method: 'POST',
+      body: JSON.stringify({ uris: [`spotify:track:${trackId}`] }),
+    })
+  }
+
+  // ---------- artists and playlists (search tabs), new releases ----------
+
+  async searchEntities(query: string, kind: EntityKind): Promise<Entity[]> {
+    if (kind === 'profile') return [] // Spotify doesn't let apps search user profiles
+    const r = await this.api<{ artists?: { items: (SpArtist | null)[] }; playlists?: { items: (SpPlaylist | null)[] }; albums?: { items: (SpAlbum | null)[] } }>(`/search?${new URLSearchParams({ q: query, type: kind, limit: '10' })}`)
+    if (kind === 'artist')
+      return (r.artists?.items ?? []).filter((a): a is SpArtist => !!a).map((a) => ({ source: 'spotify', kind, id: a.id, name: a.name, subtitle: `Artist${a.followers?.total ? ` · ${compact(a.followers.total)} followers` : ''}`, artwork: a.images?.[0]?.url }))
+    if (kind === 'album')
+      return (r.albums?.items ?? []).filter((a): a is SpAlbum => !!a).map((a) => ({ source: 'spotify', kind: 'playlist', id: `album:${a.id}`, name: a.name, subtitle: `${a.album_type === 'single' ? 'Single' : 'Album'} · ${(a.artists ?? []).map((x) => x.name).join(', ')}${a.release_date ? ` · ${a.release_date.slice(0, 4)}` : ''}`, artwork: a.images?.[0]?.url }))
+    return (r.playlists?.items ?? []).filter((p): p is SpPlaylist => !!p).map((p) => ({ source: 'spotify', kind, id: p.id, name: p.name, subtitle: `by ${p.owner?.display_name ?? 'Spotify'}${p.tracks?.total ? ` · ${p.tracks.total} songs` : ''}`, artwork: p.images?.[0]?.url }))
+  }
+
+  async entityPage(e: Entity): Promise<EntityPage> {
+    if (e.kind === 'playlist') return { tracks: await this.playlistTracks(e.id), playlists: [] }
+    // top tracks are closed to apps like Negusify now: fall back to searching the artist's songs
+    const top = await this.api<{ tracks: ApiTrack[] }>(`/artists/${e.id}/top-tracks?market=from_token`).catch(async () => {
+      const pages = await Promise.all(
+        [0, 10, 20].map((offset) => this.api<{ tracks: { items: ApiTrack[] } }>(`/search?${new URLSearchParams({ q: `artist:"${e.name}"`, type: 'track', limit: '10', offset: String(offset) })}`).catch(() => ({ tracks: { items: [] as ApiTrack[] } }))),
+      )
+      const seen = new Set<string>()
+      return { tracks: pages.flatMap((p) => p.tracks.items).filter((t) => (t.artists as { id?: string }[]).some((a) => a.id === e.id) && t.id && !seen.has(t.id) && !!seen.add(t.id)) }
+    })
+    const albums = await this.api<{ items: { id: string; name: string; images?: { url: string }[]; release_date?: string; album_type?: string }[] }>(`/artists/${e.id}/albums?include_groups=album,single&limit=10`).catch(() => ({ items: [] }))
+    return {
+      tracks: top.tracks.filter(playable).map(toTrack),
+      playlists: albums.items.map((a) => ({ source: 'spotify' as const, kind: 'playlist' as const, id: `album:${a.id}`, name: a.name, subtitle: `${a.album_type === 'single' ? 'Single' : 'Album'}${a.release_date ? ` · ${a.release_date.slice(0, 4)}` : ''}`, artwork: a.images?.[0]?.url })),
+    }
+  }
+
+  /** Albums and singles from the last 6 weeks by the artists you follow (needs user-follow-read). */
+  async newReleases(_maxSeconds: number): Promise<Entity[]> {
+    const artists: { id: string }[] = []
+    let next: string | null = '/me/following?type=artist&limit=50'
+    for (let page = 0; next && page < 4; page++) {
+      const r: { artists: { items: { id: string }[]; next: string | null } } = await this.api(next)
+      artists.push(...r.artists.items)
+      next = r.artists.next
+    }
+    const since = Date.now() - 42 * 24 * 3600_000
+    const out: Entity[] = []
+    for (let i = 0; i < artists.length; i += 5) {
+      const batch = await Promise.all(
+        artists.slice(i, i + 5).map((a) =>
+          this.api<{ items: { id: string; name: string; images?: { url: string }[]; artists?: { name: string }[]; album_type?: string; release_date?: string; release_date_precision?: string }[] }>(`/artists/${a.id}/albums?include_groups=album,single&limit=5`).catch(() => ({ items: [] })),
+        ),
+      )
+      for (const r of batch)
+        for (const al of r.items) {
+          if (al.release_date_precision !== 'day') continue
+          const at = Date.parse(al.release_date ?? '')
+          if (!at || at < since) continue
+          out.push({ source: 'spotify', kind: 'playlist', id: `album:${al.id}`, name: al.name, subtitle: `${al.album_type === 'single' ? 'Single' : 'Album'} · ${(al.artists ?? []).map((x) => x.name).join(', ')}`, artwork: al.images?.[0]?.url, releasedAt: at })
+        }
+    }
+    const seen = new Set<string>()
+    return out.filter((e) => !seen.has(e.id) && !!seen.add(e.id)).sort((a, b) => b.releasedAt! - a.releasedAt!).slice(0, 25)
+  }
+
+  async playlistTracks(id: string): Promise<Track[]> {
+    // an artist's album, opened from their page or new releases
+    if (id.startsWith('album:')) {
+      const album = await this.api<{ name: string; images?: { url: string }[]; tracks: { items: Omit<ApiTrack, 'album'>[] } }>(`/albums/${id.slice(6)}`)
+      return album.tracks.items.filter((t) => t.id).map((t) => toTrack({ ...t, album: { name: album.name, images: album.images } } as ApiTrack))
+    }
+    const items = await this.paged<{ item?: ApiTrack | null; track?: ApiTrack | null }>(`/playlists/${encodeURIComponent(id)}/items?limit=50`)
+    return items.map((i) => i.item ?? i.track).filter(playable).map(toTrack)
+  }
+}
+
+export const spotify = new Spotify()

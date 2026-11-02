@@ -1,0 +1,139 @@
+# End-to-end check in the iOS simulator (run by .github/workflows/ios.yml):
+# search, play a song, open the player, then run the in-app diagnostics.
+appId: com.negusify.app
+---
+- launchApp:
+    clearState: true
+# first launch asks Streaming or Full
+- extendedWaitUntil:
+    visible:
+      id: "mode-streaming"
+    timeout: 90000
+- takeScreenshot: 00-mode
+- tapOn:
+    id: "mode-streaming"
+# first launch asks to log in to a Negusify account: check the form, then skip it
+- extendedWaitUntil:
+    visible:
+      id: "Create an account"
+    timeout: 90000
+- takeScreenshot: 00-account-prompt
+- tapOn:
+    id: "Create an account"
+- tapOn:
+    id: "account-email"
+- inputText: "e2e@example.com"
+- tapOn:
+    id: "account-password"
+- inputText: "short"
+- assertVisible: "At least 8 characters"
+# (no hideKeyboard: iOS password fields don't offer it to the test tool; Back works with it open)
+- takeScreenshot: 00-account-signup
+- tapOn:
+    id: "Back"
+- extendedWaitUntil:
+    visible:
+      id: "tab-search"
+    timeout: 90000
+- takeScreenshot: 01-home
+# the side panel (menu button or a swipe from the left edge on Home), then close it by tapping beside it
+- tapOn:
+    id: "open-side-panel"
+- extendedWaitUntil:
+    visible: "Local files"
+    timeout: 10000
+- takeScreenshot: 01b-side-panel
+- tapOn:
+    point: "95%,50%"
+- tapOn:
+    id: "tab-search"
+# Platforms dropdown: SoundCloud only (YouTube is picked by default)
+- tapOn:
+    id: "dropdown-Platforms"
+- tapOn: "SoundCloud"
+- tapOn: "YouTube"
+- tapOn: "Done"
+- tapOn:
+    id: "search-input"
+- inputText: "lofi chill beat"
+- extendedWaitUntil:
+    visible:
+      id: "track-0"
+    timeout: 45000
+- hideKeyboard
+- takeScreenshot: 02-search
+- tapOn:
+    id: "track-0"
+- extendedWaitUntil:
+    visible:
+      id: "Pause"
+    timeout: 90000
+- takeScreenshot: 03-playing
+- tapOn:
+    id: "mini-player"
+- waitForAnimationToEnd
+- takeScreenshot: 04-player
+- scroll
+- takeScreenshot: 05-player-lyrics
+- tapOn:
+    id: "player-toggle"
+- tapOn:
+    id: "Close player"
+- waitForAnimationToEnd
+- tapOn:
+    id: "tab-index"
+- tapOn:
+    id: "Settings"
+- waitForAnimationToEnd
+- takeScreenshot: 06-settings
+- tapOn:
+    id: "settings-quality"
+- waitForAnimationToEnd
+- takeScreenshot: 07-quality
+- tapOn:
+    id: "Back"
+- scrollUntilVisible:
+    element:
+      id: "settings-diagnostics"
+# then to the end of Settings: the space under the last row keeps it clear of the playing bar
+- scroll
+- waitForAnimationToEnd
+- tapOn:
+    id: "settings-diagnostics"
+- tapOn:
+    id: "Run"
+- extendedWaitUntil:
+    visible: "Done: .*"
+    timeout: 300000
+- takeScreenshot: 08-diagnostics
+- scroll
+- takeScreenshot: 09-diagnostics-more
+# Liquid Glass interface
+- tapOn:
+    id: "Back"
+- scrollUntilVisible:
+    element: "Themes"
+    direction: UP
+- tapOn: "Themes"
+- tapOn:
+    id: "ui-glass"
+- waitForAnimationToEnd
+- takeScreenshot: 10-themes-glass
+- tapOn:
+    id: "Back"
+- tapOn:
+    id: "Back"
+- waitForAnimationToEnd
+- takeScreenshot: 11-glass-home
+- tapOn:
+    id: "tab-search"
+- waitForAnimationToEnd
+- takeScreenshot: 12-glass-search
+- tapOn:
+    id: "tab-library"
+- waitForAnimationToEnd
+- takeScreenshot: 13-glass-library
+- tapOn:
+    id: "mini-player"
+- waitForAnimationToEnd
+- takeScreenshot: 14-glass-player

@@ -1,0 +1,379 @@
+import type { AccountStatus, RemotePlaylist, SoundCloudProfile, Track, Entity, EntityKind, EntityPage } from '../../core/types'
+import { bestMatch, scoredMatch, scoredMatches, type MatchTarget } from '../../core/match'
+import { JsonFile } from '../storage'
+import type { Quality } from '../settings'
+import type { StreamPlan } from './types'
+
+const API = 'https://api-v2.soundcloud.com'
+/** desktop browser: with a phone user agent soundcloud.com redirects to its mobile site, which has no client id */
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'
+
+interface Transcoding {
+  url: string
+  preset?: string
+  snipped?: boolean
+  format: { protocol: string; mime_type: string }
+}
+const compact = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1).replace(/\.0$/, '')}M` : n >= 1e3 ? `${Math.round(n / 1e3)}k` : String(n))
+
+interface ScPlaylist {
+  id: number
+  title: string
+  artwork_url?: string | null
+  track_count?: number
+  user?: { username: string }
+  tracks?: ScTrack[]
+}
+interface ScUserFull {
+  id: number
+  username: string
+  kind?: string
+  permalink?: string
+  avatar_url?: string
+  followers_count?: number
+  likes_count?: number
+  city?: string | null
+}
+interface Page<T> {
+  collection: T[]
+  next_href?: string | null
+}
+interface ScTrack {
+  id: number
+  title: string
+  duration: number
+  full_duration?: number
+  policy?: string
+  artwork_url?: string | null
+  track_authorization?: string
+  streamable?: boolean
+  user?: { username: string; avatar_url?: string }
+  publisher_metadata?: { artist?: string; album_title?: string } | null
+  media?: { transcodings: Transcoding[] }
+}
+
+function profileUrl(input: string) {
+  const text = input.trim().replace(/[?#].*$/, '').replace(/\/+$/, '')
+  const m = text.match(/soundcloud\.com\/([^/\s]+)/i)
+  const name = m ? m[1] : text.replace(/^@/, '')
+  if (!/^[\w-]{2,}$/.test(name)) return 'https://soundcloud.com/-'
+  return `https://soundcloud.com/${name}`
+}
+
+const kbpsOf = (t: Transcoding) => {
+  const p = t.preset ?? ''
+  return Number(p.match(/(\d+)k/)?.[1]) || (p.startsWith('mp3') ? 128 : p.startsWith('opus') ? 64 : 160)
+}
+
+/**
+ * Which stream to use for each quality step. iPhones can't play SoundCloud's Opus streams, so
+ * the choices are AAC 96 / 160 (256 on Go+ uploads) over HLS, or MP3 128 as a plain file.
+ */
+function pickTranscoding(options: Transcoding[], quality: Quality): Transcoding | null {
+  const ok = options.filter(
+    (t) =>
+      !t.snipped &&
+      ['hls', 'progressive'].includes(t.format.protocol) && // encrypted variants need SoundCloud's own app
+      (t.preset?.startsWith('aac') || t.preset?.startsWith('mp3')),
+  )
+  const aac = ok.filter((t) => t.preset?.startsWith('aac') && t.format.protocol === 'hls').sort((a, b) => kbpsOf(a) - kbpsOf(b))
+  const mp3 = ok.find((t) => t.preset?.startsWith('mp3') && t.format.protocol === 'progressive') ?? ok.find((t) => t.preset?.startsWith('mp3'))
+  if (quality === 'best') return aac[aac.length - 1] ?? mp3 ?? null
+  // low / mid: the smallest AAC (usually 96 kbps), else MP3
+  return aac[0] ?? mp3 ?? null
+}
+
+class SoundCloud {
+  private clientId: Promise<string> | null = null
+  /** client id scraped from soundcloud.com, kept on disk (the scrape downloads ~1 MB of scripts) */
+  private store = new JsonFile<{ clientId?: string; profile?: { id: number; username: string } }>('soundcloud.json', {})
+
+  private getClientId(refresh = false) {
+    if (refresh) {
+      this.clientId = null
+      this.store.set({ ...this.store.get(), clientId: undefined })
+    }
+    const saved = this.store.get().clientId
+    if (!this.clientId && saved) this.clientId = Promise.resolve(saved)
+    this.clientId ??= (async () => {
+      const html = await (await fetch('https://soundcloud.com/', { headers: { 'User-Agent': UA } })).text()
+      const scripts = [...html.matchAll(/<script[^>]+src="(https:\/\/a-v2\.sndcdn\.com\/assets\/[^"]+\.js)"/g)].map((m) => m[1]).reverse()
+      for (const src of scripts) {
+        const js = await (await fetch(src)).text()
+        const m = js.match(/client_id\s*[:=]\s*"([a-zA-Z0-9]{32})"/)
+        if (m) {
+          this.store.set({ ...this.store.get(), clientId: m[1] })
+          return m[1]
+        }
+      }
+      throw new Error("Couldn't connect to SoundCloud (client id not found)")
+    })().catch((err) => {
+      this.clientId = null
+      throw err
+    })
+    return this.clientId
+  }
+
+  private async api<T>(path: string, params: Record<string, string> = {}, retry = true): Promise<T> {
+    const clientId = await this.getClientId()
+    const url = `${path.startsWith('http') ? path : API + path}?${new URLSearchParams({ client_id: clientId, ...params })}`
+    const res = await fetch(url, { headers: { 'User-Agent': UA } })
+    if ((res.status === 401 || res.status === 403) && retry) {
+      await this.getClientId(true)
+      return this.api(path, params, false)
+    }
+    if (!res.ok) throw new Error(`SoundCloud returned ${res.status} (${path.replace(API, '').split('?')[0].slice(0, 80)})`)
+    return res.json() as Promise<T>
+  }
+
+  // ---------- account (your public profile; no password needed) ----------
+
+  status(): AccountStatus {
+    const p = this.store.get().profile
+    return { connected: !!p, userName: p?.username ?? null }
+  }
+
+  /** For Negusify accounts: the connected profile, or null. */
+  syncedProfile() {
+    return this.store.get().profile ?? null
+  }
+
+  useSyncedProfile(p: unknown | null) {
+    this.store.set({ ...this.store.get(), profile: (p as { id: number; username: string } | null) ?? undefined }, true)
+  }
+
+  async connect(input: string): Promise<AccountStatus> {
+    let found: ScUserFull | null
+    const byId = input.match(/^id:(\d+)$/)
+    if (byId) found = await this.api<ScUserFull>(`/users/${byId[1]}`).catch(() => null)
+    else {
+      found = await this.api<ScUserFull>('/resolve', { url: profileUrl(input) }).catch(() => null)
+      if (found?.kind !== 'user') found = null
+    }
+    if (!found?.id) throw new Error("Couldn't find that SoundCloud profile")
+    this.store.set({ ...this.store.get(), profile: { id: found.id, username: found.username ?? '' } }, true)
+    return this.status()
+  }
+
+  async findProfiles(query: string): Promise<SoundCloudProfile[]> {
+    const q = query.trim()
+    if (!q) return []
+    const toProfile = (u: ScUserFull): SoundCloudProfile => ({
+      id: u.id,
+      username: u.username,
+      permalink: u.permalink ?? '',
+      avatar: u.avatar_url?.replace('-large.', '-t200x200.'),
+      followers: u.followers_count ?? 0,
+      likes: u.likes_count ?? 0,
+      city: u.city ?? undefined,
+    })
+    const out: SoundCloudProfile[] = []
+    const exact = await this.api<ScUserFull>('/resolve', { url: profileUrl(q) }).catch(() => null)
+    if (exact?.kind === 'user') out.push(toProfile(exact))
+    if (!/soundcloud\.com\//i.test(q)) {
+      const res = await this.api<{ collection: ScUserFull[] }>('/search/users', { q, limit: '10' }).catch(() => null)
+      for (const u of res?.collection ?? []) if (!out.some((p) => p.id === u.id)) out.push(toProfile(u))
+    }
+    return out.slice(0, 10)
+  }
+
+  logout() {
+    this.store.set({ ...this.store.get(), profile: undefined }, true)
+  }
+
+  private me() {
+    const p = this.store.get().profile
+    if (!p) throw new Error('No SoundCloud profile connected')
+    return p
+  }
+
+  private async all<T>(path: string, params: Record<string, string>, max: number): Promise<T[]> {
+    const out: T[] = []
+    let page = await this.api<Page<T>>(path, { ...params, linked_partitioning: '1' })
+    out.push(...page.collection)
+    while (page.next_href && out.length < max) {
+      const next = new URL(page.next_href)
+      next.searchParams.delete('client_id')
+      const params2: Record<string, string> = {}
+      next.searchParams.forEach((v, k) => (params2[k] = v))
+      page = await this.api<Page<T>>(`${next.origin}${next.pathname}`, params2)
+      out.push(...page.collection)
+    }
+    return out
+  }
+
+  async liked(): Promise<Track[]> {
+    const me = this.me()
+    const likes = await this.all<{ track?: ScTrack; created_at?: string }>(`/users/${me.id}/track_likes`, { limit: '200' }, 5000)
+    return likes
+      .filter((l): l is { track: ScTrack; created_at?: string } => !!l.track && l.track.policy !== 'BLOCK')
+      .map((l) => ({ ...this.toTrack(l.track), likedAt: l.created_at ? Date.parse(l.created_at) : undefined }))
+  }
+
+  async playlists(): Promise<RemotePlaylist[]> {
+    const me = this.me()
+    const own = await this.all<ScPlaylist>(`/users/${me.id}/playlists_without_albums`, { limit: '50' }, 500)
+    const items = await this.all<{ playlist?: ScPlaylist }>(`/users/${me.id}/likes`, { limit: '200' }, 2000).catch(() => [])
+    const seen = new Set<number>()
+    const out: RemotePlaylist[] = []
+    for (const p of [...own, ...items.map((i) => i.playlist)]) {
+      if (!p || seen.has(p.id)) continue
+      seen.add(p.id)
+      out.push({
+        id: String(p.id),
+        name: p.title,
+        artwork: (p.artwork_url || p.tracks?.[0]?.artwork_url || undefined)?.replace('-large.', '-t300x300.'),
+        owner: p.user?.username ?? '',
+        total: p.track_count ?? 0,
+      })
+    }
+    return out
+  }
+
+  // ---------- profiles and playlists (search tabs), new releases ----------
+
+  async searchEntities(query: string, kind: EntityKind): Promise<Entity[]> {
+    if (kind === 'artist') return [] // on SoundCloud artists are profiles: see Profiles
+    if (kind === 'profile') {
+      const r = await this.api<{ collection: ScUserFull[] }>('/search/users', { q: query, limit: '12' })
+      return r.collection.map((u) => ({ source: 'soundcloud', kind, id: String(u.id), name: u.username, subtitle: `SoundCloud${u.followers_count ? ` · ${compact(u.followers_count)} followers` : ''}${u.city ? ` · ${u.city}` : ''}`, artwork: u.avatar_url?.replace('-large.', '-t500x500.') }))
+    }
+    // albums are playlists on SoundCloud too, just searched apart
+    const r = await this.api<{ collection: ScPlaylist[] }>(kind === 'album' ? '/search/albums' : '/search/playlists', { q: query, limit: '12' })
+    return r.collection.map((p) => ({ source: 'soundcloud', kind: 'playlist', id: String(p.id), name: p.title, subtitle: `by ${p.user?.username ?? ''}${p.track_count ? ` · ${p.track_count} songs` : ''}`, artwork: (p.artwork_url || undefined)?.replace('-large.', '-t500x500.') }))
+  }
+
+  async entityPage(e: Entity): Promise<EntityPage> {
+    if (e.kind === 'playlist') return { tracks: await this.playlistTracks(e.id), playlists: [] }
+    const [tracks, lists] = await Promise.all([
+      this.api<{ collection: ScTrack[] }>(`/users/${e.id}/tracks`, { limit: '50' }),
+      this.api<{ collection: ScPlaylist[] }>(`/users/${e.id}/playlists_without_albums`, { limit: '20' }).catch(() => ({ collection: [] as ScPlaylist[] })),
+    ])
+    return {
+      tracks: tracks.collection.filter((t) => t.policy !== 'BLOCK').map((t) => this.toTrack(t)),
+      playlists: lists.collection.map((p) => ({ source: 'soundcloud' as const, kind: 'playlist' as const, id: String(p.id), name: p.title, subtitle: `${p.track_count ?? 0} songs`, artwork: (p.artwork_url || undefined)?.replace('-large.', '-t500x500.') })),
+    }
+  }
+
+  /** Tracks posted in the last 6 weeks by the profiles your connected profile follows. */
+  async newReleases(maxSeconds: number): Promise<Entity[]> {
+    const me = this.store.get().profile
+    if (!me) return []
+    const follows = await this.api<{ collection: ScUserFull[] }>(`/users/${me.id}/followings`, { limit: '60' })
+    const since = Date.now() - 42 * 24 * 3600_000
+    const out: Entity[] = []
+    const users = follows.collection
+    for (let i = 0; i < users.length; i += 6) {
+      const batch = await Promise.all(users.slice(i, i + 6).map((u) => this.api<{ collection: (ScTrack & { created_at?: string })[] }>(`/users/${u.id}/tracks`, { limit: '3' }).catch(() => ({ collection: [] }))))
+      for (const r of batch)
+        for (const t of r.collection) {
+          const at = Date.parse(t.created_at ?? '')
+          if (!at || at < since || t.policy === 'BLOCK') continue
+          const track = this.toTrack(t)
+          if (maxSeconds && track.duration > maxSeconds) continue
+          out.push({ source: 'soundcloud', kind: 'playlist', id: `track:${t.id}`, name: track.title, subtitle: `New · ${track.artist}`, artwork: track.artwork, releasedAt: at, tracks: [track] })
+        }
+    }
+    return out.sort((a, b) => b.releasedAt! - a.releasedAt!).slice(0, 25)
+  }
+
+  async playlistTracks(id: string): Promise<Track[]> {
+    const pl = await this.api<ScPlaylist>(`/playlists/${id}`, { representation: 'full' })
+    const tracks = pl.tracks ?? []
+    const missing = tracks.filter((t) => !t.title).map((t) => t.id)
+    const full = new Map<number, ScTrack>()
+    for (let i = 0; i < missing.length; i += 50) {
+      const batch = await this.api<ScTrack[]>('/tracks', { ids: missing.slice(i, i + 50).join(',') })
+      for (const t of batch) full.set(t.id, t)
+    }
+    return tracks
+      .map((t) => (t.title ? t : full.get(t.id)))
+      .filter((t): t is ScTrack => !!t && t.policy !== 'BLOCK')
+      .map((t) => this.toTrack(t))
+  }
+
+  /** stream details that came with search / likes / playlists, so playing needs no extra lookup */
+  private known = new Map<string, ScTrack>()
+
+  private toTrack(t: ScTrack): Track {
+    if (t.media?.transcodings?.length) {
+      if (this.known.size > 3000) this.known.clear()
+      this.known.set(String(t.id), t)
+    }
+    const art = t.artwork_url || t.user?.avatar_url
+    return {
+      uid: `soundcloud:${t.id}`,
+      source: 'soundcloud',
+      id: String(t.id),
+      title: t.title,
+      artist: t.publisher_metadata?.artist || t.user?.username || 'Unknown Artist',
+      album: t.publisher_metadata?.album_title || 'SoundCloud',
+      duration: (t.full_duration ?? t.duration) / 1000,
+      artwork: art?.replace('-large.', '-t300x300.'),
+    }
+  }
+
+  async search(query: string, limit = 30): Promise<Track[]> {
+    const res = await this.api<{ collection: ScTrack[] }>('/search/tracks', { q: query, limit: String(limit + 10) })
+    return res.collection
+      .filter((t) => t.streamable !== false && t.policy !== 'BLOCK' && t.policy !== 'SNIP')
+      .slice(0, limit)
+      .map((t) => this.toTrack(t))
+  }
+
+  async match(t: MatchTarget) {
+    return bestMatch(t, await this.search(`${t.artist.split(',')[0].trim()} ${t.title}`, 15))
+  }
+
+  async matchScored(t: MatchTarget) {
+    return scoredMatch(t, await this.search(`${t.artist.split(',')[0].trim()} ${t.title}`, 15))
+  }
+
+  /** All acceptable copies, best first. */
+  async matches(t: MatchTarget) {
+    return scoredMatches(t, await this.search(`${t.artist.split(',')[0].trim()} ${t.title}`, 15))
+  }
+
+  /** The track with its streams: from what we already have, else /tracks/{id}, else /tracks?ids= (some regions 404 the first). */
+  private async trackDetails(id: string): Promise<ScTrack> {
+    const have = this.known.get(id)
+    if (have?.media?.transcodings?.length) return have
+    try {
+      return await this.api<ScTrack>(`/tracks/${id}`)
+    } catch (err) {
+      const list = await this.api<ScTrack[]>('/tracks', { ids: id }).catch(() => [])
+      if (list[0]) return list[0]
+      throw err
+    }
+  }
+
+  async plan(id: string, quality: Quality): Promise<StreamPlan> {
+    const track = await this.trackDetails(id)
+    const pick = pickTranscoding(track.media?.transcodings ?? [], quality)
+    if (!pick) throw new Error('SoundCloud has no iPhone-playable stream for this track')
+    const params: Record<string, string> = {}
+    if (track.track_authorization) params.track_authorization = track.track_authorization
+    let url: string
+    try {
+      url = (await this.api<{ url: string }>(pick.url, params)).url
+    } catch (err) {
+      if (!this.known.has(id)) throw err
+      this.known.delete(id)
+      return this.plan(id, quality)
+    }
+    const isAac = pick.preset?.startsWith('aac')
+    const kbps = kbpsOf(pick)
+    return {
+      source: 'soundcloud',
+      id,
+      kind: pick.format.protocol === 'hls' ? 'hls' : 'file',
+      url,
+      ext: isAac ? 'mp4' : 'mp3',
+      codec: isAac ? 'aac' : 'mp3',
+      kbps,
+      quality: isAac ? `AAC · ${kbps} kbps` : 'MP3 · 128 kbps',
+    }
+  }
+}
+
+export const soundcloud = new SoundCloud()
