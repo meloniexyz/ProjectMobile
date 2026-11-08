@@ -2,7 +2,7 @@ import type { BaseItemDto, QueryResult } from '../../core/jellyfin'
 import type { AccountStatus, Entity, RemotePlaylist, Track } from '../../core/types'
 import type { SavedWork } from '../../core/works'
 import { currentServer, fullMode, jf, serverById, tokenOf } from '../jellyfin'
-import type { Quality } from '../settings'
+import type { JellyfinQuality } from '../settings'
 import type { StreamPlan } from './types'
 
 /**
@@ -11,7 +11,7 @@ import type { StreamPlan } from './types'
  * songs play on both, each song from its own server.
  */
 const TICKS = 10_000_000
-const FIELDS = 'MediaSources,DateCreated,ParentId'
+const FIELDS = 'MediaSources,DateCreated,ParentId,People,Genres'
 
 export const jellyfinTrackId = (serverId: string, itemId: string) => `${serverId}~${itemId}`
 const split = (id: string) => {
@@ -38,7 +38,14 @@ function toTrack(it: BaseItemDto, serverId: string): Track {
     year: it.ProductionYear ?? undefined,
     // Jellyfin's gain targets -18 LUFS; Negusify levels to -14
     gainDb: it.NormalizationGain != null ? Math.round((it.NormalizationGain + 4) * 10) / 10 : undefined,
+    composers: composersOf(it),
+    genres: it.Genres?.length ? it.Genres : undefined,
   }
+}
+
+function composersOf(it: BaseItemDto) {
+  const names = (it.People ?? []).filter((p) => p.Type === 'Composer' && p.Name).map((p) => p.Name!)
+  return names.length ? [...new Set(names)] : undefined
 }
 
 const tracks = (r: QueryResult<BaseItemDto>, serverId: string) => r.Items.filter((i) => i.Type === 'Audio' || !i.Type).map((i) => toTrack(i, serverId))
@@ -50,8 +57,8 @@ const DIRECT: Record<string, { ext: StreamPlan['ext']; codec: StreamPlan['codec'
   aac: { ext: 'm4a', codec: 'aac', name: 'AAC' },
   mp3: { ext: 'mp3', codec: 'mp3', name: 'MP3' },
 }
-/** lossy steps for Low and Mid (Spotify-like); Best gets the original file */
-const LOSSY_KBPS: Record<Exclude<Quality, 'best'>, number> = { low: 128, mid: 256 }
+/** MP3 steps the server makes on the fly */
+const MP3_KBPS: Partial<Record<JellyfinQuality, number>> = { 'mp3-128': 128, 'mp3-256': 256, 'mp3-320': 320 }
 
 // ---------- the server's library (Library → Jellyfin → Tracks / Albums), same sorts as Negusify on Windows ----------
 
@@ -334,6 +341,19 @@ export const jellyfin = {
     return jf<SavedWork[]>('/HQPlayer/works', { query: { albumId: itemId.replace(/-/g, '') }, serverId: s.id }).catch(() => [])
   },
 
+  /** The saved work a song belongs to, with its album name (null: none saved, or no plugin). */
+  async trackWork(trackId: string): Promise<{ work: SavedWork; album?: string; year?: number } | null> {
+    const { serverId, itemId } = split(trackId)
+    const s = serverById(serverId) ?? currentServer()
+    if (!s) return null
+    const it = (await jf<QueryResult<BaseItemDto>>('/Items', { query: { userId: s.userId, Ids: itemId }, serverId: s.id })).Items[0]
+    if (!it?.AlbumId) return null
+    const works = await jellyfin.albumWorks(jellyfinTrackId(s.id, it.AlbumId))
+    const want = itemId.replace(/-/g, '')
+    const work = works.find((w) => w.TrackItemIds.some((id) => id.replace(/-/g, '') === want))
+    return work ? { work, album: it.Album ?? undefined, year: it.ProductionYear ?? undefined } : null
+  },
+
   async isLiked(ids: string[]): Promise<boolean[]> {
     const s = currentServer()
     if (!s || !ids.length) return ids.map(() => false)
@@ -357,11 +377,13 @@ export const jellyfin = {
   },
 
   /**
-   * How to download a song. Best: the original file when iOS plays it (FLAC, ALAC, AAC, MP3), else the
-   * server converts it to FLAC (DSD, APE, WavPack...). Low / Mid: the server makes an MP3 at 128 / 256
-   * kbps, unless the file is already that small.
+   * How to get a song at a quality step.
+   * - Original: the file as it is when iOS plays it (FLAC, ALAC, AAC, MP3), else FLAC made by the server
+   *   (WAV, DSD, APE, WavPack...).
+   * - CD quality: the same, but hi-res is brought down by the server to 16-bit at 44.1 / 48 kHz (FLAC).
+   * - MP3 320 / 256 / 128: made by the server, unless the file is already lossy and that small.
    */
-  async plan(id: string, quality: Quality): Promise<StreamPlan> {
+  async plan(id: string, quality: JellyfinQuality): Promise<StreamPlan> {
     const { serverId, itemId } = split(id)
     const s = serverById(serverId)
     if (!s) throw new Error('This song is on a Jellyfin server that is no longer saved')
@@ -373,31 +395,38 @@ export const jellyfin = {
     const codec = (audio?.Codec ?? '').toLowerCase()
     const kbps = Math.round((audio?.BitRate ?? src?.Bitrate ?? 0) / 1000)
     const gainDb = item.NormalizationGain != null ? Math.round((item.NormalizationGain + 4) * 10) / 10 : undefined
-    const rate = audio?.SampleRate ? `${Math.round(audio.SampleRate / 100) / 10} kHz` : ''
-    const bits = audio?.BitDepth ? `${audio.BitDepth}-bit` : ''
+    const sampleRate = audio?.SampleRate ?? 0
+    const bitDepth = audio?.BitDepth ?? 0
+    const khz = (hz: number) => `${Math.round(hz / 100) / 10} kHz`
+    const rate = sampleRate ? khz(sampleRate) : ''
+    const bits = bitDepth ? `${bitDepth}-bit` : ''
     const bytes = src?.Size ?? undefined
     const direct = codec.startsWith('pcm') ? null : DIRECT[codec]
     const lossy = codec === 'mp3' || codec === 'aac'
     const key = `api_key=${encodeURIComponent(token)}`
+    const base = { source: 'jellyfin' as const, id, gainDb }
 
-    if (quality !== 'best' && !(lossy && kbps && kbps <= LOSSY_KBPS[quality] + 8)) {
-      const target = LOSSY_KBPS[quality]
+    const mp3 = MP3_KBPS[quality]
+    if (mp3 && !(lossy && kbps && kbps <= mp3 + 8)) {
+      return { ...base, kind: 'file', url: `${s.url}/Audio/${itemId}/stream.mp3?audioCodec=mp3&audioBitRate=${mp3 * 1000}&${key}`, ext: 'mp3', codec: 'mp3', kbps: mp3, quality: `MP3 · ${mp3} kbps` }
+    }
+    // CD quality: hi-res (over 16-bit or over 48 kHz) is brought down by the server
+    const hiRes = !lossy && (bitDepth > 16 || sampleRate > 48_000)
+    if (quality === 'cd' && hiRes) {
+      const to = sampleRate && sampleRate % 44_100 === 0 ? 44_100 : 48_000
       return {
-        source: 'jellyfin',
-        id,
+        ...base,
         kind: 'file',
-        url: `${s.url}/Audio/${itemId}/stream.mp3?audioCodec=mp3&audioBitRate=${target * 1000}&${key}`,
-        ext: 'mp3',
-        codec: 'mp3',
-        kbps: target,
-        quality: `MP3 · ${target} kbps`,
-        gainDb,
+        url: `${s.url}/Audio/${itemId}/stream.flac?audioCodec=flac&audioSampleRate=${Math.min(to, sampleRate || to)}&maxAudioBitDepth=16&${key}`,
+        ext: 'flac',
+        codec: 'flac',
+        kbps: 1000,
+        quality: ['FLAC · CD quality', '16-bit', khz(Math.min(to, sampleRate || to)), bits || rate ? `from ${[bits, rate].filter(Boolean).join(' / ')}` : ''].filter(Boolean).join(' · '),
       }
     }
     if (direct) {
       return {
-        source: 'jellyfin',
-        id,
+        ...base,
         kind: 'file',
         url: `${s.url}/Audio/${itemId}/stream?static=true&${key}`,
         ext: direct.ext,
@@ -405,21 +434,18 @@ export const jellyfin = {
         kbps: kbps || 1000,
         quality: [direct.name, lossy ? (kbps ? `${kbps} kbps` : '') : bits, lossy ? '' : rate].filter(Boolean).join(' · '),
         bytes,
-        gainDb,
       }
     }
     // WAV, DSD, APE...: the server sends FLAC (lossless, much smaller than WAV)
     const from = codec.startsWith('pcm') ? 'WAV' : codec.startsWith('dsd') ? 'DSD' : codec.toUpperCase() || 'the original'
     return {
-      source: 'jellyfin',
-      id,
+      ...base,
       kind: 'file',
       url: `${s.url}/Audio/${itemId}/stream.flac?audioCodec=flac&${key}`,
       ext: 'flac',
       codec: 'flac',
       kbps: kbps || 1000,
       quality: [`FLAC from ${from}`, bits, rate].filter(Boolean).join(' · '),
-      gainDb,
     }
   },
 }

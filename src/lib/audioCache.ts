@@ -1,10 +1,11 @@
 import { Directory, File, Paths } from 'expo-file-system'
 import type { SourceId } from '../core/types'
 import { createStore } from '../core/store'
-import type { Quality } from './settings'
+import { atLeast, type AnyQuality } from './settings'
 import { cacheDir, downloadsDir, JsonFile } from './storage'
-import { cleanError, resolvePlan, youtube, type StreamPlan } from './sources'
+import { cleanError, otherCopy, resolvePlan, youtube, type StreamPlan } from './sources'
 import type { Track } from '../core/types'
+import { fixFlacLength } from './flacLength'
 
 /**
  * Songs on the phone, like Spotify's cache:
@@ -18,7 +19,7 @@ export interface CacheEntry {
   name: string
   pinned: boolean
   bytes: number
-  quality: Quality
+  quality: AnyQuality
   /** e.g. "AAC · 128 kbps" */
   label: string
   /** gain to -14 LUFS, published by the source or measured on the phone */
@@ -34,8 +35,7 @@ const index = new JsonFile<Record<string, CacheEntry>>('audio-index.json', {})
 export const cacheStore = createStore<{ version: number }>({ version: 0 })
 const bump = () => cacheStore.set((s) => ({ version: s.version + 1 }))
 
-const RANK: Record<Quality, number> = { low: 0, mid: 1, best: 2 }
-export const atLeast = (have: Quality, want: Quality) => RANK[have] >= RANK[want]
+export { atLeast }
 
 const safeName = (uid: string, ext: string) => `${uid.replace(/[^\w-]/g, '_')}.${ext}`
 const fileOf = (e: CacheEntry) => new File(e.pinned ? downloadsDir : cacheDir, e.name)
@@ -122,7 +122,7 @@ const inFlight = new Map<string, Promise<CacheEntry>>()
  * Makes sure a streaming song is on the phone at (at least) the given quality, downloading it
  * if needed. `pinned` keeps it for offline listening.
  */
-export function ensureOnPhone(track: Track, quality: Quality, pinned = false): Promise<CacheEntry> {
+export function ensureOnPhone(track: Track, quality: AnyQuality, pinned = false): Promise<CacheEntry> {
   const have = lookup(track.uid)
   if (have && atLeast(have.quality, quality)) {
     if (pinned && !have.pinned) return Promise.resolve(pin(track.uid) ?? have)
@@ -137,21 +137,43 @@ export function ensureOnPhone(track: Track, quality: Quality, pinned = false): P
   return job
 }
 
-async function download(track: Track, quality: Quality, pinned: boolean): Promise<CacheEntry> {
+async function download(track: Track, quality: AnyQuality, pinned: boolean): Promise<CacheEntry> {
   let resolved = await resolvePlan(track, quality)
   const dir = pinned ? downloadsDir : cacheDir
   const name = safeName(track.uid, resolved.plan.ext)
   const tmp = new File(dir, `${name}.part`)
-  let bytes: number
+  let bytes = 0
   try {
     bytes = await fetchInto(resolved.plan, tmp)
-  } catch (err) {
-    // YouTube refused the token: new session, one more try
-    if (resolved.plan.source === 'youtube' && /403|401/.test(String(err))) {
+  } catch (first) {
+    // YouTube refused it (often after YouTube changed its player): a new session, one more try
+    let err: unknown = first
+    let retried = false
+    if (resolved.plan.source === 'youtube' && /403|401|410/.test(String(first))) {
       youtube.invalidateSession()
-      resolved = await resolvePlan(track, quality)
+      try {
+        resolved = await resolvePlan(track, quality)
+        bytes = await fetchInto(resolved.plan, tmp)
+        retried = true
+      } catch (e) {
+        err = e
+      }
+    }
+    if (!retried) {
+      // still nothing: the same recording from the other service, so the song plays instead of skipping
+      const failed = resolved.plan.source === 'jellyfin' ? null : resolved.plan.source
+      const other = track.source === 'local' ? null : await otherCopy(track, quality, failed).catch(() => null)
+      if (!other) throw cleanError(err)
+      resolved = other
       bytes = await fetchInto(resolved.plan, tmp)
-    } else throw cleanError(err)
+    }
+  }
+  if (resolved.plan.ext === 'flac') {
+    try {
+      fixFlacLength(tmp, track.duration)
+    } catch (err) {
+      console.warn('[audioCache] FLAC length', track.title, err)
+    }
   }
   const old = index.get()[track.uid]
   if (old) {
@@ -179,6 +201,18 @@ async function download(track: Track, quality: Quality, pinned: boolean): Promis
   index.set({ ...index.get(), [track.uid]: entry })
   bump()
   return entry
+}
+
+/** Songs saved before FLAC lengths were filled in: fix them once (a quick check on good files). */
+export function repairFlacLengths() {
+  for (const e of Object.values(index.get())) {
+    if (!e.name.endsWith('.flac')) continue
+    try {
+      fixFlacLength(fileOf(e))
+    } catch (err) {
+      console.warn('[audioCache] FLAC length', e.name, err)
+    }
+  }
 }
 
 /** Keep a cached song for offline listening. */

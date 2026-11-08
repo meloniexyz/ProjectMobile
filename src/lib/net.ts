@@ -1,6 +1,7 @@
 import * as Network from 'expo-network'
 import { createStore, useStore } from '../core/store'
-import { getSettings, type Quality } from './settings'
+import type { Track } from '../core/types'
+import { getSettings, type AnyQuality } from './settings'
 
 export type Connection = 'wifi' | 'cellular' | 'offline'
 
@@ -31,4 +32,12 @@ export const canStream = () => !getSettings().offlineMode && connection() !== 'o
 export const onWifi = () => connection() === 'wifi'
 
 /** The streaming quality that applies on the current connection. */
-export const streamQuality = (): Quality => (onWifi() ? getSettings().wifiQuality : getSettings().cellularQuality)
+/** The streaming quality for a song right now (Jellyfin songs have their own setting). */
+export function streamQuality(track?: Pick<Track, 'source'>): AnyQuality {
+  const s = getSettings()
+  if (track?.source === 'jellyfin') return onWifi() ? s.jellyfinWifiQuality : s.jellyfinCellularQuality
+  return onWifi() ? s.wifiQuality : s.cellularQuality
+}
+
+/** The download quality for a song. */
+export const downloadQualityFor = (track: Pick<Track, 'source'>): AnyQuality => (track.source === 'jellyfin' ? getSettings().jellyfinDownloadQuality : getSettings().downloadQuality)

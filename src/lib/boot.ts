@@ -1,4 +1,5 @@
 import { initAccounts } from './accounts'
+import { repairFlacLengths } from './audioCache'
 import { initDownloads } from './downloads'
 import { initHistory } from './history'
 import { initLibrary } from './library'
@@ -33,4 +34,6 @@ export function boot() {
   startAppIconSync()
   // get YouTube's playback token while the app is in front (it lasts hours)
   setTimeout(() => youtube.warmUp(), 1500)
+  // older downloads of server-converted FLAC have no length, so they couldn't be seeked
+  setTimeout(() => repairFlacLengths(), 3000)
 }

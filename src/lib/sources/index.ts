@@ -1,6 +1,6 @@
 import type { SongMatch } from '../../core/account'
 import type { Entity, EntityKind, EntityPage, SourceId, Track } from '../../core/types'
-import { getSettings, type Quality } from '../settings'
+import { asJellyfin, asStreaming, getSettings, type AnyQuality, type Quality } from '../settings'
 import { jellyfin } from './jellyfin'
 import { JsonFile } from '../storage'
 import { soundcloud } from './soundcloud'
@@ -118,9 +118,26 @@ async function copyOn(id: 'youtube' | 'soundcloud', target: { title: string; art
  *   (both searched; on "best" the better-sounding wins, on "low"/"mid" the smaller), or a preferred
  *   service first with the other as backup.
  */
-export async function resolvePlan(track: Track, quality: Quality): Promise<Resolved> {
+/**
+ * The same recording from the other service, when the one we had won't download (YouTube refused it,
+ * or a SoundCloud copy turned out to be locked). `failed`: the service that just failed (null: try both).
+ * Doesn't change the account's pick for Spotify songs: it fills in for this play only.
+ */
+export async function otherCopy(track: Track, wanted: AnyQuality, failed: 'youtube' | 'soundcloud' | null): Promise<Resolved | null> {
+  const quality = asStreaming(wanted)
+  const target = { title: track.title, artist: track.artist, duration: track.duration }
+  const why: string[] = []
+  for (const id of (['soundcloud', 'youtube'] as const).filter((s) => s !== failed)) {
+    const c = await copyOn(id, target, quality, why, track.source === id ? track.id : undefined)
+    if (c) return { plan: c.plan, via: c.track }
+  }
+  return null
+}
+
+export async function resolvePlan(track: Track, wanted: AnyQuality): Promise<Resolved> {
+  if (track.source === 'jellyfin') return { plan: await jellyfin.plan(track.id, asJellyfin(wanted)), via: null }
+  const quality = asStreaming(wanted)
   if (track.source === 'soundcloud') return { plan: await soundcloud.plan(track.id, quality), via: null }
-  if (track.source === 'jellyfin') return { plan: await jellyfin.plan(track.id, quality), via: null }
   const target = { title: track.title, artist: track.artist, duration: track.duration }
   if (track.source === 'youtube') {
     let first: unknown = new Error('YouTube refused this connection (often a VPN)')
@@ -178,7 +195,7 @@ export async function resolvePlan(track: Track, quality: Quality): Promise<Resol
     const r = { ...redo.get() }
     delete r[track.uid]
     redo.set(r)
-    if (prev) return resolvePlan(track, quality)
+    if (prev) return resolvePlan(track, wanted)
   }
   if (!chosen) throw new Error(`No playable copy of this Spotify song on YouTube Music or SoundCloud (${why.join('; ')})`)
   if (!prev || avoid !== undefined) {

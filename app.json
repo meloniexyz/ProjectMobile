@@ -3,14 +3,14 @@
     "name": "Negusify",
     "slug": "negusify",
     "scheme": "negusify",
-    "version": "0.1.5",
+    "version": "0.1.6",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#000000",
     "ios": {
       "bundleIdentifier": "com.negusify.app",
-      "buildNumber": "3",
+      "buildNumber": "4",
       "supportsTablet": false,
       "infoPlist": {
         "UIBackgroundModes": [

@@ -9,13 +9,14 @@ import { Image } from 'expo-image'
 import { accountStore } from '../../lib/accounts'
 import { clearHistory } from '../../lib/history'
 import { refreshLocalVisibility } from '../../lib/library'
-import { updateSettings, useSettings, type Quality } from '../../lib/settings'
+import { updateSettings, useSettings, type JellyfinQuality, type Quality } from '../../lib/settings'
 import { SOURCES } from '../../lib/sources'
 import { THEMES, useColors, ui } from '../../lib/theme'
 import { MODES } from '../../lib/mode'
 import { useServers } from '../../lib/jellyfin'
 
 const QUALITY_LABEL: Record<Quality, string> = { low: 'Low', mid: 'Mid', best: 'Best' }
+const JF_LABEL: Record<JellyfinQuality, string> = { original: 'Original', cd: 'CD quality', 'mp3-320': 'High', 'mp3-256': 'Normal', 'mp3-128': 'Data saver' }
 
 function Group({ title }: { title: string }) {
   return (
@@ -79,7 +80,11 @@ export default function Settings() {
         <Group title="Audio quality" />
         <Row
           title="Streaming and downloads"
-          sub={`Wi-Fi: ${QUALITY_LABEL[s.wifiQuality]} · Mobile data: ${QUALITY_LABEL[s.cellularQuality]} · Downloads: ${QUALITY_LABEL[s.downloadQuality]}`}
+          sub={
+            s.mode === 'full'
+              ? `Jellyfin: ${JF_LABEL[s.jellyfinWifiQuality]} on Wi-Fi · ${JF_LABEL[s.jellyfinCellularQuality]} on mobile data · Downloads: ${JF_LABEL[s.jellyfinDownloadQuality]}`
+              : `Wi-Fi: ${QUALITY_LABEL[s.wifiQuality]} · Mobile data: ${QUALITY_LABEL[s.cellularQuality]} · Downloads: ${QUALITY_LABEL[s.downloadQuality]}`
+          }
           icon="pulse-outline"
           onPress={() => router.push('/settings/quality')}
           chevron

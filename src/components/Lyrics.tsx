@@ -3,6 +3,8 @@ import { Pressable, ScrollView, View } from 'react-native'
 import type { Lyrics as LyricsData, SongInfo, Track } from '../core/types'
 import { getLyrics } from '../core/lyrics'
 import { getSongInfo } from '../core/songinfo'
+import { isClassical, performedLine, type SavedWork } from '../core/works'
+import { jellyfin } from '../lib/sources'
 import { canStream } from '../lib/net'
 import { seek, usePlayer } from '../lib/player'
 import { JsonFile } from '../lib/storage'
@@ -155,7 +157,66 @@ export function LyricsCard({ track }: { track: Track }) {
   )
 }
 
+const CLASSICAL_ROLE: Record<string, string> = { 'Written by': 'Composed by', 'Lyrics by': 'Text by', Vocals: 'Voice' }
+
+/** Jellyfin songs with a work saved on the server: its details, not a guess from MusicBrainz. */
+function SavedWorkCard({ track, saved }: { track: Track; saved: { work: SavedWork; album?: string; year?: number } }) {
+  const c = useColors()
+  const w = saved.work
+  const classical = isClassical(track)
+  const performed = performedLine(w)
+  const row = (label: string, value?: string) =>
+    value ? (
+      <Txt tone="text2" size={13}>
+        <Txt size={13} weight="700">
+          {label}:{' '}
+        </Txt>
+        {value}
+      </Txt>
+    ) : null
+  return (
+    <View style={{ marginHorizontal: ui.pad, borderRadius: 10, backgroundColor: c.bg3, padding: 14, gap: 6 }}>
+      <Txt size={16} weight="800">
+        {classical ? 'About this piece' : 'About this song'}
+      </Txt>
+      {w.Title ? <Txt tone="text2">{w.Title}</Txt> : null}
+      {saved.album ? <Txt tone="text2">{`${saved.album}${saved.year ? ` (${saved.year})` : ''}`}</Txt> : null}
+      {performed ? <Txt tone="text2">{`${w.IsLive ? 'Performed live' : 'Performed'} ${performed}`}</Txt> : w.IsLive ? <Txt tone="text2">Live recording</Txt> : null}
+      {row(w.Soloists && w.Soloists.length > 1 ? 'Soloists' : 'Soloist', w.Soloists?.join(', '))}
+      {row('Ensemble', w.Ensemble)}
+      {row(classical ? 'Composed by' : 'Written by', track.composers?.join(', '))}
+      {w.Notes ? (
+        <Txt tone="text2" size={13}>
+          {w.Notes}
+        </Txt>
+      ) : null}
+      <Txt tone="text3" size={11}>
+        From your Jellyfin server
+      </Txt>
+    </View>
+  )
+}
+
 export function SongInfoCard({ track }: { track: Track }) {
+  const [saved, setSaved] = useState<{ work: SavedWork; album?: string; year?: number } | null | undefined>(track.source === 'jellyfin' ? undefined : null)
+  useEffect(() => {
+    if (track.source !== 'jellyfin') return setSaved(null)
+    let live = true
+    setSaved(undefined)
+    jellyfin
+      .trackWork(track.id)
+      .catch(() => null)
+      .then((w) => live && setSaved(w))
+    return () => {
+      live = false
+    }
+  }, [track.uid])
+  if (saved === undefined) return null
+  if (saved) return <SavedWorkCard track={track} saved={saved} />
+  return <MusicBrainzCard track={track} />
+}
+
+function MusicBrainzCard({ track }: { track: Track }) {
   const c = useColors()
   const [info, setInfo] = useState<SongInfo | null | undefined>(undefined)
   useEffect(() => {
@@ -168,10 +229,13 @@ export function SongInfoCard({ track }: { track: Track }) {
     }
   }, [track.title, track.artist, track.duration])
   if (!info) return null
+  // classical: a piece, composed (not written) by someone, with a text rather than lyrics
+  const classical = isClassical(track)
+  const role = (r: string) => (classical ? (CLASSICAL_ROLE[r] ?? r) : r)
   return (
     <View style={{ marginHorizontal: ui.pad, borderRadius: 10, backgroundColor: c.bg3, padding: 14, gap: 6 }}>
       <Txt size={16} weight="800">
-        About this song
+        {classical ? 'About this piece' : 'About this song'}
       </Txt>
       {info.album ? <Txt tone="text2">{`${info.albumType ? `${info.albumType}: ` : ''}${info.album}`}</Txt> : null}
       {info.released ? <Txt tone="text2">Released {info.released}</Txt> : null}
@@ -183,7 +247,7 @@ export function SongInfoCard({ track }: { track: Track }) {
       {info.credits.slice(0, 6).map((cr, i) => (
         <Txt key={`c${i}`} tone="text2" size={13}>
           <Txt size={13} weight="700">
-            {cr.role}:{' '}
+            {role(cr.role)}:{' '}
           </Txt>
           {cr.names.join(', ')}
         </Txt>

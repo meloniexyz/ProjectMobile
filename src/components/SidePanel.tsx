@@ -159,6 +159,7 @@ export function SidePanel() {
               <Item icon="server-outline" title="Servers" onPress={() => go('/settings/servers')} />
             </>
           ) : null}
+          <Item icon="arrow-down-circle-outline" title="Downloads" onPress={() => go('/downloads')} />
           <Item icon="folder-outline" title="Local files" onPress={() => go('/local')} />
           <Item icon="time-outline" title="History" onPress={() => go('/history')} />
           {liked.length ? (

@@ -25,6 +25,10 @@ export interface Track {
   kept?: boolean
   /** explicit (uncensored) version, when the service says (Spotify, YouTube Music) */
   explicit?: boolean
+  /** Jellyfin: the song's composers (People of type Composer) */
+  composers?: string[]
+  /** Jellyfin: the song's genres (classical wording on the player) */
+  genres?: string[]
 }
 
 export interface Playlist {

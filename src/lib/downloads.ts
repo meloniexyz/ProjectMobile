@@ -2,7 +2,7 @@ import type { Track } from '../core/types'
 import { createStore, useStore } from '../core/store'
 import { ensureOnPhone, isDownloaded, unpin, lookup, cacheStore } from './audioCache'
 import { libStore } from './library'
-import { canStream, netStore, onWifi } from './net'
+import { canStream, downloadQualityFor, netStore, onWifi } from './net'
 import { getSettings, settingsStore } from './settings'
 import { cleanError } from './sources'
 import { JsonFile } from './storage'
@@ -96,6 +96,13 @@ function rememberPinned(uid: string) {
   if (!pinned.get().includes(uid)) pinned.set([...pinned.get(), uid])
 }
 
+/** Every song in a downloaded list or downloaded on its own, once each (newest list first). */
+export function allDownloadTracks(): Track[] {
+  const seen = new Map<string, Track>()
+  for (const c of Object.values(downloadStore.get().collections).reverse()) for (const t of c.tracks) if (t.source !== 'local' && !seen.has(t.uid)) seen.set(t.uid, t)
+  return [...seen.values()]
+}
+
 /** How many of a list's songs are downloaded. */
 export function collectionProgress(c: Collection) {
   const streamable = c.tracks.filter((t) => t.source !== 'local')
@@ -151,7 +158,7 @@ async function run() {
       downloadStore.set({ current: { title: track.title, done: t.done, total: t.total }, paused: null })
       try {
         const had = lookup(track.uid)
-        await ensureOnPhone(track, getSettings().downloadQuality, true)
+        await ensureOnPhone(track, downloadQualityFor(track), true)
         if (!had?.pinned) rememberPinned(track.uid)
         cacheStore.set((s) => ({ version: s.version + 1 }))
       } catch (err) {

@@ -7,7 +7,7 @@ import { atLeast, ensureOnPhone, lookup, setGain, touch, trimCache, fileUri } fr
 import { eqFilters } from './eq'
 import { flushListening, trackListening } from './history'
 import { localUriFor } from './library'
-import { canStream, streamQuality } from './net'
+import { canStream, onWifi, streamQuality } from './net'
 import { getSettings, LOUDNESS_LUFS, settingsStore } from './settings'
 import { cleanError, SOURCES, youtube } from './sources'
 import { JsonFile } from './storage'
@@ -163,7 +163,7 @@ async function prepare(item: QueueItem, purpose: 'play' | 'prefetch'): Promise<N
     gain = t.gainDb ?? loudness.get()[t.uid]
     quality = (t.id && uri.split('.').pop()?.toUpperCase()) || 'Local file'
   } else {
-    const want = streamQuality()
+    const want = streamQuality(t)
     let entry = lookup(t.uid)
     const usable = entry && (entry.pinned || atLeast(entry.quality, want) || !canStream())
     if (!usable) {
@@ -295,11 +295,24 @@ async function prefetch() {
     console.warn('[player] prefetch', item.track.title, cleanError(err).message)
     return
   }
-  // on Wi-Fi, also get the one after (data is free there); on mobile data only the next song
-  const after = nextIndex(ni, false)
-  if (after >= 0 && after !== state.index && streamQuality() === getSettings().wifiQuality && canStream()) {
-    const t = state.queue[after].track
-    if (t.source !== 'local' && !lookup(t.uid)) ensureOnPhone(t, streamQuality()).catch(() => {})
+  // Skipping should never wait: the songs after the next one are made ready too, one after another
+  // (3 ahead on Wi-Fi, 2 on mobile data). A song YouTube won't give gets its copy from the other
+  // service here, in the background, instead of when you skip to it.
+  const ahead = onWifi() ? 3 : 2
+  let from = ni
+  for (let n = 1; n < ahead && canStream(); n++) {
+    const i = nextIndex(from, false)
+    if (i < 0 || i === state.index || i === ni) break
+    from = i
+    const t = state.queue[i].track
+    if (t.source === 'local' || lookup(t.uid)) continue
+    try {
+      await ensureOnPhone(t, streamQuality(t))
+    } catch (err) {
+      console.warn('[player] prefetch', t.title, cleanError(err).message)
+    }
+    // something else started meanwhile: that load prefetches its own next songs
+    if (mine !== prefetchSeq) return
   }
 }
 

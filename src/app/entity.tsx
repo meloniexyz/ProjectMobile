@@ -6,7 +6,7 @@ import { EntityRow } from '../components/EntityList'
 import { TrackList } from '../components/TrackRow'
 import { Button, Empty, ErrorText, Header, Spinner, Txt } from '../components/ui'
 import type { Entity, EntityPage } from '../core/types'
-import { workGroups, type SavedWork } from '../core/works'
+import { albumNotes, workGroups, type SavedWork } from '../core/works'
 import { createPlaylist } from '../lib/library'
 import { cleanError, entityPage, jellyfin, SOURCES } from '../lib/sources'
 import { useColors, ui } from '../lib/theme'
@@ -49,6 +49,11 @@ export default function EntityScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [page, saved],
   )
+  const itemId = (t: { id: string }) => t.id.slice(t.id.indexOf('~') + 1).replace(/-/g, '')
+  // performance and composer lines under each song, like the desktop
+  const notes = useMemo(() => (e.kind === 'album' ? albumNotes(tracks, itemId, saved) : null), [page, saved])
+  // the same cover on every song of an album says nothing: track numbers instead
+  const sameCover = e.kind === 'album' && tracks.length > 0 && tracks.every((t) => t.artwork === tracks[0].artwork)
   const kindName = e.kind === 'artist' ? 'artist' : e.kind === 'playlist' ? 'playlist' : e.kind === 'album' ? 'album' : e.source === 'youtube' ? 'channel' : 'profile'
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
@@ -56,6 +61,8 @@ export default function EntityScreen() {
       <TrackList
         tracks={tracks}
         groups={groups}
+        notes={notes?.lines}
+        hideArt={sameCover}
         onRefresh={load}
         refreshing={loading && !!page}
         header={
@@ -67,6 +74,13 @@ export default function EntityScreen() {
               tracks={tracks}
               downloadKey={e.kind === 'playlist' || e.kind === 'album' ? `entity:${e.source}:${e.id}` : undefined}
             />
+            {notes?.banners.map((b) => (
+              <View key={b} style={{ marginHorizontal: ui.pad, marginBottom: 8, padding: 10, borderRadius: 8, backgroundColor: c.bg3 }}>
+                <Txt tone="text2" size={13}>
+                  {b}
+                </Txt>
+              </View>
+            ))}
             {e.kind === 'playlist' && tracks.length ? (
               <Button
                 title="Save to my playlists"

@@ -43,6 +43,66 @@ export interface SavedWork {
   Title?: string
   IsLive: boolean
   TrackItemIds: string[]
+  Ensemble?: string
+  Soloists?: string[]
+  Notes?: string
+  Venue?: string
+  City?: string
+  Country?: string
+  /** YYYY, YYYY-MM or YYYY-MM-DD */
+  PerformanceDateStart?: string
+  PerformanceDateEnd?: string
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/** "1962" | "1962, May" | "1962, May 3" from YYYY / YYYY-MM / YYYY-MM-DD (as on Windows). */
+function partialDate(d?: string) {
+  if (!d) return ''
+  const [y, m, day] = d.split('-')
+  if (!m) return y
+  const month = MONTHS[Number(m) - 1] ?? m
+  return day ? `${y}, ${month} ${Number(day)}` : `${y}, ${month}`
+}
+
+const locationOf = (w: SavedWork) => [w.Venue, w.City, w.Country].filter(Boolean).join(', ')
+
+/** "1932, Nov 11 – 1932, Nov 12, Abbey Road Studios, London, United Kingdom" */
+export function performedLine(w: SavedWork, omitLocation = false) {
+  const a = partialDate(w.PerformanceDateStart)
+  const b = partialDate(w.PerformanceDateEnd)
+  const date = a && b && a !== b ? `${a} – ${b}` : a || b
+  return [date, omitLocation ? '' : locationOf(w)].filter(Boolean).join(', ')
+}
+
+/**
+ * The extra lines under an album's songs, like Negusify on Windows: "Performed ..." from the saved
+ * works, "Composed by ..." unless the whole album shares one composer (then it's a banner instead).
+ */
+export function albumNotes<T extends { title: string; composers?: string[] }>(songs: T[], idOf: (s: T) => string, saved: SavedWork[] = []) {
+  const banners: string[] = []
+  const lines = new Map<number, string>()
+  const located = saved.filter((w) => locationOf(w))
+  const sameLocation = located.length >= 2 && located.every((w) => locationOf(w) === locationOf(located[0]))
+  if (sameLocation) banners.push(`All tracks performed at ${locationOf(located[0])}.`)
+  const withComposer = songs.filter((s) => s.composers?.length)
+  const key = (s: T) => [...(s.composers ?? [])].sort().join('|')
+  const oneComposer = withComposer.length >= 2 && withComposer.every((s) => s.composers!.length === 1 && key(s) === key(withComposer[0]))
+  if (oneComposer) banners.push(`All works composed by ${withComposer[0].composers![0]}.`)
+  const workOf = new Map<string, SavedWork>()
+  for (const w of saved) for (const id of w.TrackItemIds) workOf.set(id.replace(/-/g, ''), w)
+  songs.forEach((s, i) => {
+    const w = workOf.get(idOf(s))
+    const parts: string[] = []
+    if (w) {
+      const p = performedLine(w, sameLocation)
+      if (w.IsLive && w.TrackItemIds.length === 1) parts.push('Live')
+      if (p) parts.push(`Performed ${p}`)
+    }
+    if (!oneComposer && s.composers?.length) parts.push(`Composed by ${s.composers.join(', ')}`)
+    if (parts.length) lines.set(i, parts.join(' · '))
+  })
+  return { banners, lines }
 }
 
 /** A group of consecutive songs: `start` and `count` index into the album's songs. */
@@ -85,3 +145,13 @@ export function workGroups<T>(songs: T[], titleOf: (s: T) => string, idOf: (s: T
   return out
 }
 
+
+const CLASSICAL_GENRE = /classical|baroque|opera|symphon|chamber|concert|early music|renaissance|medieval|romantic era|contemporary classical|choral|lieder|orchestral/i
+const WORK_TITLE = /\b(Op\.|BWV|K\.\s?\d|KV\s?\d|S\.\s?\d|Hob\.|D\.\s?\d|RV\s?\d|HWV|WoO|Sonata|Symphony|Concerto|Nocturne|Etude|Étude|Prelude|Fugue|Mazurka|Ballade|Scherzo|Partita|Suite|Quartet|Trio|Requiem|Mass in)\b/i
+
+/** Classical music: by genre, else a composer who isn't the performer on a song titled like a work. */
+export function isClassical(t: { title: string; artist: string; genres?: string[]; composers?: string[] }) {
+  if (t.genres?.length) return t.genres.some((g) => CLASSICAL_GENRE.test(g))
+  const performer = t.artist.toLowerCase()
+  return !!t.composers?.some((c) => !performer.includes(c.toLowerCase())) && WORK_TITLE.test(t.title)
+}

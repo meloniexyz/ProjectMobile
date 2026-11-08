@@ -6,6 +6,26 @@ import { JsonFile } from './storage'
 /** Spotify-style quality steps. What each means per source is in quality.ts. */
 export type Quality = 'low' | 'mid' | 'best'
 
+/**
+ * Jellyfin songs: the original file, CD-quality lossless (hi-res brought down to 16-bit / 44.1-48 kHz
+ * by the server), or an MP3 the server makes on the fly.
+ */
+export type JellyfinQuality = 'original' | 'cd' | 'mp3-320' | 'mp3-256' | 'mp3-128'
+export type AnyQuality = Quality | JellyfinQuality
+const JF_RANK: Record<JellyfinQuality, number> = { 'mp3-128': 0, 'mp3-256': 1, 'mp3-320': 2, cd: 3, original: 4 }
+const LEGACY_JF: Record<Quality, JellyfinQuality> = { low: 'mp3-128', mid: 'mp3-256', best: 'original' }
+const STREAM_RANK: Record<Quality, number> = { low: 0, mid: 1, best: 2 }
+const isJf = (q: AnyQuality): q is JellyfinQuality => q in JF_RANK
+/** A Jellyfin step from any setting (songs cached before the Jellyfin settings used Low / Mid / Best). */
+export const asJellyfin = (q: AnyQuality): JellyfinQuality => (isJf(q) ? q : LEGACY_JF[q])
+/** A streaming step from any setting. */
+export const asStreaming = (q: AnyQuality): Quality => (isJf(q) ? (JF_RANK[q] >= 2 ? 'best' : JF_RANK[q] === 1 ? 'mid' : 'low') : q)
+/** Is a copy at `have` good enough for `want`? */
+export function atLeast(have: AnyQuality, want: AnyQuality) {
+  if (isJf(have) || isJf(want)) return JF_RANK[asJellyfin(have)] >= JF_RANK[asJellyfin(want)]
+  return STREAM_RANK[have] >= STREAM_RANK[want]
+}
+
 export interface MobileSettings {
   /** streaming quality on Wi-Fi */
   wifiQuality: Quality
@@ -17,6 +37,10 @@ export interface MobileSettings {
   downloadOnCellular: boolean
   /** only play what's downloaded; no network use at all for music */
   offlineMode: boolean
+  /** Jellyfin songs: their own steps (lossless files are far bigger than the services' streams) */
+  jellyfinWifiQuality: JellyfinQuality
+  jellyfinCellularQuality: JellyfinQuality
+  jellyfinDownloadQuality: JellyfinQuality
   /** room for recently played songs (MB); played songs are kept so replays use no data */
   cacheLimitMb: number
   /** loudness all songs are leveled to, like Spotify's Quiet / Normal / Loud */
@@ -51,6 +75,9 @@ export const DEFAULT_MOBILE_SETTINGS: MobileSettings = {
   downloadQuality: 'best',
   downloadOnCellular: false,
   offlineMode: false,
+  jellyfinWifiQuality: 'original',
+  jellyfinCellularQuality: 'mp3-320',
+  jellyfinDownloadQuality: 'original',
   cacheLimitMb: 1024,
   loudnessLevel: 'normal',
   normalize: true,

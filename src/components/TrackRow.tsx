@@ -53,6 +53,8 @@ export function TrackRow({
   showSource = true,
   title,
   indent,
+  note,
+  hideArt,
 }: {
   track: Track
   onPress: () => void
@@ -63,6 +65,10 @@ export function TrackRow({
   title?: string
   /** a movement of the work above */
   indent?: boolean
+  /** an extra line under the artist ("Performed 1932, Nov 11, Abbey Road Studios…") */
+  note?: string
+  /** album pages: every song has the album's cover, so show the track number instead */
+  hideArt?: boolean
 }) {
   const c = useColors()
   const currentUid = usePlayer((s) => s.queue[s.index]?.track.uid)
@@ -97,7 +103,13 @@ export function TrackRow({
         opacity: available ? 1 : 0.38,
       })}
     >
-      <Artwork src={track.artwork} size={48} />
+      {hideArt ? (
+        <Txt tone="text2" size={14} style={{ width: 24, textAlign: 'center' }}>
+          {track.trackNo ?? (index != null ? index + 1 : '')}
+        </Txt>
+      ) : (
+        <Artwork src={track.artwork} size={48} />
+      )}
       <View style={{ flex: 1, minWidth: 0 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           {active ? <Bars playing={playing} /> : null}
@@ -113,6 +125,11 @@ export function TrackRow({
             {track.duration ? ` · ${fmtTime(track.duration)}` : ''}
           </Txt>
         </View>
+        {note ? (
+          <Txt tone="text3" size={12} lines={2} style={{ marginTop: 2 }}>
+            {note}
+          </Txt>
+        ) : null}
       </View>
       <IconButton name="ellipsis-horizontal" size={20} color={c.text2} label={`More for ${track.title}`} onPress={() => openTrackSheet(track, { playlistId })} />
     </Pressable>
@@ -131,8 +148,14 @@ export function TrackList({
   refreshing,
   empty,
   onEndReached,
+  notes,
+  hideArt,
 }: {
   tracks: Track[]
+  /** extra line per song, by index */
+  notes?: Map<number, string>
+  /** album pages: no cover on each row (they're all the album's) */
+  hideArt?: boolean
   header?: React.ReactElement | null
   footer?: React.ReactElement | null
   playlistId?: string
@@ -166,6 +189,8 @@ export function TrackList({
         playlistId={playlistId}
         title={item.movement}
         indent={item.movement !== undefined}
+        note={notes?.get(item.i)}
+        hideArt={hideArt}
         onPress={() => playTracks(tracks, item.i)}
       />
     )
