@@ -111,7 +111,9 @@ async function runAll(report: (r: Result) => void, cross?: CrossCheck) {
       const e = await ensureOnPhone(track, 'mid')
       ytFile = fileUri(e)
       // YouTube's own quality is Opus: AAC here means repacking it for the iPhone failed
-      if (!e.label.startsWith('Opus')) throw new Error(`got ${e.label} instead of YouTube's Opus`)
+      // (unless YouTube refused it and the same song came from another service, as the bot check makes it do)
+      if (!e.via && !e.label.startsWith('Opus')) throw new Error(`got ${e.label} instead of YouTube's Opus`)
+      if (e.via) return `YouTube refused, from ${e.via} instead: ${e.label}, ${(e.bytes / 1e6).toFixed(2)} MB`
       return `${e.label}, ${(e.bytes / 1e6).toFixed(2)} MB, gain ${e.gainDb?.toFixed(1) ?? '?'} dB`
     })
   }
