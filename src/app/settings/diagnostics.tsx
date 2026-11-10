@@ -110,6 +110,8 @@ async function runAll(report: (r: Result) => void, cross?: CrossCheck) {
       removeDownload(track.uid)
       const e = await ensureOnPhone(track, 'mid')
       ytFile = fileUri(e)
+      // YouTube's own quality is Opus: AAC here means repacking it for the iPhone failed
+      if (!e.label.startsWith('Opus')) throw new Error(`got ${e.label} instead of YouTube's Opus`)
       return `${e.label}, ${(e.bytes / 1e6).toFixed(2)} MB, gain ${e.gainDb?.toFixed(1) ?? '?'} dB`
     })
   }
@@ -131,8 +133,14 @@ async function runAll(report: (r: Result) => void, cross?: CrossCheck) {
       const s = getPlayer()
       if (!s.playing || s.position < 1.5) throw new Error(`not playing (position ${s.position.toFixed(1)} s, error: ${s.error ?? 'none'})`)
       const pos = s.position
+      // the Opus file repacked on the phone: jumping ahead must work too
+      const target = Math.min(60, Math.max(5, (getPlayer().duration || 90) - 20))
+      seek(target)
+      for (let i = 0; i < 16 && Math.abs(getPlayer().position - target) > 3; i++) await sleep(500)
+      const after = getPlayer().position
       toggle()
-      return `played to ${pos.toFixed(1)} s · ${s.quality ?? ''}`
+      if (Math.abs(after - target) > 3) throw new Error(`seeking to ${target} s landed at ${after.toFixed(1)} s`)
+      return `played to ${pos.toFixed(1)} s, seeked to ${after.toFixed(1)} s · ${s.quality ?? ''}`
     })
   }
 

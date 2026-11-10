@@ -246,6 +246,25 @@ export async function remove(id: string) {
   emit()
 }
 
+/**
+ * Moves a saved server to a new address (the owner moved its instance). The new address must answer as
+ * the same Jellyfin server, so the saved sign-in stays valid; otherwise nothing changes and it throws.
+ */
+export async function changeAddress(id: string, address: string) {
+  const server = serverById(id)
+  if (!server) throw new Error('That server is no longer saved')
+  const url = normalizeUrl(address)
+  if (url === server.url) return server
+  const pub = await http<{ Id: string; ServerName: string; Version: string }>(url, '/System/Info/Public', { timeoutMs: 8000 })
+  if (pub.status !== 200 || !pub.data?.Id) throw new Error(`No Jellyfin server found at ${url}`)
+  if (pub.data.Id !== server.jellyfinId) throw new Error(`${url} is a different Jellyfin server`)
+  const next: StoredServer = { ...server, url, serverName: pub.data.ServerName, version: pub.data.Version }
+  const s = file.get()
+  file.set({ ...s, servers: s.servers.map((x) => (x.id === id ? next : x)) }, true)
+  emit()
+  return next
+}
+
 export function rename(id: string, name: string) {
   const s = file.get()
   file.set({ ...s, servers: s.servers.map((x) => (x.id === id ? { ...x, name: name.trim() || x.serverName } : x)) }, true)

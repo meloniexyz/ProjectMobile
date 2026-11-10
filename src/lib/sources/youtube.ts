@@ -183,6 +183,12 @@ export interface DeviceCode {
   url: string
 }
 
+/** Turned off for this run if repacking Opus ever fails, so YouTube songs fall back to AAC. */
+let opusWorks = true
+export const disableOpus = () => {
+  opusWorks = false
+}
+
 class YouTube {
   /** search (no login, no player script needed) */
   private searchClient: Promise<Innertube> | null = null
@@ -412,11 +418,23 @@ class YouTube {
 
   // ---------- streaming ----------
 
-  /** Connection methods in the order to try: the one that worked last time first. */
-  private methodOrder(): StreamMethod[] {
+  /** songs in a row where the signed-in account got no Premium audio: after a few, this run stops asking */
+  private premiumMisses = 0
+
+  /** methods that answered with AAC only this run (YouTube's iOS app gets no Opus): tried after the others */
+  private aacOnly = new Set<StreamMethod>()
+  /** set when no method offered Opus: until then, songs take the first working method instead of looking further */
+  private noOpusUntil = 0
+
+  /**
+   * Connection methods in the order to try: the one that worked last time first, the ones that only
+   * offer AAC last (when Opus, YouTube's better stream, is wanted).
+   */
+  private methodOrder(wantOpus = false): StreamMethod[] {
     const all: StreamMethod[] = ['ios', 'ytmusic', 'mweb', 'tv-simply', 'tv-simply-server', ...(this.saved() ? (['account'] as StreamMethod[]) : [])]
     const last = methodFile.get().method
-    return last && all.includes(last) ? [last, ...all.filter((m) => m !== last)] : all
+    const order = last && all.includes(last) ? [last, ...all.filter((m) => m !== last)] : all
+    return wantOpus ? [...order.filter((m) => !this.aacOnly.has(m)), ...order.filter((m) => this.aacOnly.has(m))] : order
   }
 
   /** One attempt with one connection method. */
@@ -425,11 +443,27 @@ class YouTube {
     const info = await yt.getBasicInfo(id, { client: clientName })
     const status = info.playability_status?.status
     if (status && status !== 'OK') throw new Error(info.playability_status?.reason || `not playable (${status})`)
-    const aac = [...(info.streaming_data?.adaptive_formats ?? [])]
-      .filter((f) => f.has_audio && !f.has_video && f.mime_type.startsWith('audio/mp4'))
-      .sort((a, b) => (a.bitrate ?? 0) - (b.bitrate ?? 0))
-    if (!aac.length) throw new Error('no iPhone-playable audio for this song')
-    const pick = quality === 'low' ? aac[0] : quality === 'mid' ? (aac.find((f) => f.itag === 140) ?? aac[aac.length - 1]) : aac[aac.length - 1]
+    // audio only, the original-language track (not a dub), never the compressed "DRC" copy
+    const all = (info.streaming_data?.adaptive_formats ?? []).filter((f) => f.has_audio && !f.has_video)
+    const original = all.filter((f) => f.is_original !== false)
+    const clean = (original.length ? original : all).filter((f) => !f.is_drc)
+    const audio = clean.length ? clean : original.length ? original : all
+    const rate = (f: (typeof audio)[number]) => f.average_bitrate ?? f.bitrate ?? 0
+    const aac = audio.filter((f) => f.mime_type.startsWith('audio/mp4')).sort((a, b) => rate(a) - rate(b))
+    // Opus (WebM): what YouTube's own apps play; repacked into CAF on the phone (see webmToCaf.ts)
+    const opus = opusWorks ? audio.filter((f) => f.mime_type.startsWith('audio/webm') && /opus/.test(f.mime_type)).sort((a, b) => rate(a) - rate(b)) : []
+    if (!aac.length && !opus.length) throw new Error('no iPhone-playable audio for this song')
+    // Opus sounds better than AAC at the same bitrate (Opus 160 > AAC 128); AAC 256 (Premium) still wins
+    const score = (f: (typeof audio)[number]) => rate(f) * (f.mime_type.startsWith('audio/webm') ? 1.3 : 1)
+    const best = [...aac, ...opus].sort((a, b) => score(b) - score(a))[0]
+    const pick =
+      quality === 'low'
+        ? (opus.find((f) => f.itag === 250 || f.itag === 249) ?? aac[0] ?? opus[0])
+        : quality === 'mid'
+          ? // the normal step: YouTube's standard Opus (251), as its app plays on mobile data
+            (opus.find((f) => f.itag === 251) ?? aac.find((f) => f.itag === 140) ?? best)
+          : best
+    const isOpus = pick.mime_type.startsWith('audio/webm')
     const url = new URL(await pick.decipher(yt.session.player))
     if (token) url.searchParams.set('pot', token)
     const bytes = Number(pick.content_length) || 0
@@ -440,10 +474,11 @@ class YouTube {
       id,
       kind: 'file',
       url: url.toString(),
-      ext: 'm4a',
-      codec: 'aac',
+      ext: isOpus ? 'caf' : 'm4a',
+      codec: isOpus ? 'opus' : 'aac',
+      ...(isOpus ? { remux: 'webm-caf' as const } : {}),
       kbps,
-      quality: `AAC · ${kbps} kbps`,
+      quality: `${isOpus ? 'Opus' : 'AAC'} · ${kbps} kbps`,
       bytes,
       gainDb:
         pick.track_absolute_loudness_lkfs != null
@@ -455,18 +490,43 @@ class YouTube {
   }
 
   /**
-   * Where to download a song from. iPhones play AAC (not YouTube's Opus), so the choice is
-   * itag 139 (~48 kbps), 140 (~128 kbps) or, rarely, 141 (256 kbps).
+   * Where to download a song from: YouTube's Opus (itag 251, ~130-160 kbps, what its apps play),
+   * repacked into CAF for the iPhone; AAC (140 = 128 kbps, 141 = 256 kbps with Premium) when there's
+   * no Opus or the phone couldn't repack it.
    * If one connection method fails for any reason (the bot check, an app YouTube has retired, refused
    * audio), the next is tried; the one that works is remembered and tried first next time.
    */
   async plan(id: string, quality: Quality): Promise<StreamPlan> {
     let lastErr: unknown
     let audioRefused = 0
-    for (const method of this.methodOrder()) {
+    // Opus is the better stream: keep looking past methods that only give AAC (it's remembered which do)
+    const wantOpus = opusWorks && quality !== 'low' && Date.now() > this.noOpusUntil
+    let aacFallback: { p: StreamPlan; method: StreamMethod } | null = null
+    // YouTube Premium: the signed-in account gets 256 kbps audio (Opus 774 / AAC 141), better than any free stream
+    if (quality === 'best' && this.saved() && this.premiumMisses < 3) {
+      try {
+        const p = await this.planWith('account', id, quality)
+        if (p.kbps >= 200) {
+          await this.checkAudio(p)
+          this.premiumMisses = 0
+          return { ...p, quality: `${p.quality} · Premium` }
+        }
+        this.premiumMisses++
+      } catch (err) {
+        console.warn('[youtube] Premium audio unavailable:', (err as Error)?.message ?? err)
+      }
+    }
+    for (const method of this.methodOrder(wantOpus)) {
+      if (aacFallback && this.aacOnly.has(method)) continue
       try {
         const p = await this.planWith(method, id, quality)
         await this.checkAudio(p)
+        if (wantOpus && p.codec !== 'opus' && p.kbps < 200) {
+          // AAC 128 from this method: keep it in case no method has Opus, and try the others first
+          this.aacOnly.add(method)
+          aacFallback ??= { p, method }
+          continue
+        }
         if (methodFile.get().method !== method) methodFile.set({ method }, true)
         return p
       } catch (err) {
@@ -475,6 +535,12 @@ class YouTube {
         if (/audio HTTP 40[13]/.test(msg)) audioRefused++
         console.warn('[youtube]', method, msg)
       }
+    }
+    if (aacFallback) {
+      // no method offers Opus on this network right now: AAC, without looking further for half an hour
+      this.noOpusUntil = Date.now() + 30 * 60_000
+      if (methodFile.get().method !== aacFallback.method) methodFile.set({ method: aacFallback.method }, true)
+      return aacFallback.p
     }
     // every way in gave a song page but no audio: treat it like the bot check, so SoundCloud plays it
     if (audioRefused) throw new Error('YouTube refused the audio on every connection (sign in to confirm you are not a bot)')

@@ -6,8 +6,10 @@ export interface StreamPlan {
   kind: 'file' | 'hls'
   url: string
   /** file extension of the result */
-  ext: 'm4a' | 'mp3' | 'mp4' | 'flac'
-  codec: 'aac' | 'mp3' | 'flac' | 'alac'
+  ext: 'm4a' | 'mp3' | 'mp4' | 'flac' | 'caf'
+  codec: 'aac' | 'mp3' | 'flac' | 'alac' | 'opus'
+  /** 'webm-caf': the download is WebM (YouTube's Opus) and is repacked into CAF, which iPhones play */
+  remux?: 'webm-caf'
   kbps: number
   /** for display, e.g. "AAC · 128 kbps" */
   quality: string

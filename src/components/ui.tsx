@@ -1,5 +1,6 @@
 import * as Haptics from 'expo-haptics'
 import { FontAwesome, Ionicons } from '@expo/vector-icons'
+import { GlassView } from 'expo-glass-effect'
 import { Image } from 'expo-image'
 import { useGoBack } from '../lib/nav'
 import type { ComponentProps, ReactNode } from 'react'
@@ -9,6 +10,7 @@ import type { SourceId } from '../core/types'
 import { SOURCES } from '../lib/sources'
 import { fontFor, useColors, ui } from '../lib/theme'
 import { artworkUri } from '../lib/jellyfin'
+import { useGlass } from '../lib/glass'
 
 export type IconName = ComponentProps<typeof Ionicons>['name']
 
@@ -70,6 +72,7 @@ export function IconButton({
   label,
   disabled,
   style,
+  glass,
 }: {
   name: IconName
   onPress: () => void
@@ -78,8 +81,32 @@ export function IconButton({
   label: string
   disabled?: boolean
   style?: StyleProp<ViewStyle>
+  /** Liquid Glass interface: draw the button as a round piece of Apple's glass (like iOS 26's own bar buttons) */
+  glass?: boolean
 }) {
   const c = useColors()
+  const real = useGlass()
+  if (glass && real) {
+    const d = Math.round(size + 20)
+    return (
+      <GlassView isInteractive glassEffectStyle="regular" colorScheme="dark" style={[{ width: d, height: d, borderRadius: d / 2, opacity: disabled ? 0.4 : 1 }, style]}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={label}
+          testID={label}
+          hitSlop={6}
+          disabled={disabled}
+          onPress={() => {
+            Haptics.selectionAsync().catch(() => {})
+            onPress()
+          }}
+          style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+        >
+          <Ionicons name={name} size={size} color={color ?? c.text} />
+        </Pressable>
+      </GlassView>
+    )
+  }
   return (
     <Pressable
       accessibilityRole="button"
@@ -119,7 +146,33 @@ export function Button({
   style?: StyleProp<ViewStyle>
 }) {
   const c = useColors()
+  const real = useGlass()
   const feishin = c.skin === 'feishin'
+  if (real && kind !== 'danger') {
+    // Liquid Glass: a capsule of Apple's glass; the main button is tinted with your accent colour
+    const fg = kind === 'primary' ? c.accentInk : c.text
+    return (
+      <GlassView
+        isInteractive
+        glassEffectStyle="regular"
+        colorScheme="dark"
+        tintColor={kind === 'primary' ? c.accent : undefined}
+        style={[{ borderRadius: 999, opacity: disabled ? 0.45 : 1 }, style]}
+      >
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={title}
+          testID={title}
+          disabled={disabled || busy}
+          onPress={onPress}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: small ? 14 : 20, paddingVertical: small ? 8 : 12 }}
+        >
+          {busy ? <ActivityIndicator size="small" color={fg} /> : icon ? <Ionicons name={icon} size={small ? 15 : 18} color={fg} /> : null}
+          <Text style={{ color: fg, fontSize: small ? 13 : 15, ...fontFor(c, '700') }}>{title}</Text>
+        </Pressable>
+      </GlassView>
+    )
+  }
   // Feishin: white rounded-rectangle buttons instead of accent pills
   const bg = kind === 'primary' ? (feishin ? '#ffffff' : c.accent) : kind === 'secondary' ? c.bg3 : 'transparent'
   const fg = kind === 'primary' ? (feishin ? '#000000' : c.accentInk) : kind === 'danger' ? '#ff5d6c' : c.text
@@ -155,6 +208,23 @@ export function Button({
 
 export function Chip({ label, active, onPress, color }: { label: string; active?: boolean; onPress: () => void; color?: string }) {
   const c = useColors()
+  const real = useGlass()
+  if (real)
+    return (
+      <GlassView isInteractive glassEffectStyle="regular" colorScheme="dark" tintColor={active ? c.accent : undefined} style={{ borderRadius: 999 }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={label}
+          accessibilityState={{ selected: !!active }}
+          testID={`chip-${label}`}
+          onPress={onPress}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 7 }}
+        >
+          {color ? <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: color }} /> : null}
+          <Text style={{ color: active ? c.accentInk : c.text, fontSize: 13, ...fontFor(c, '600') }}>{label}</Text>
+        </Pressable>
+      </GlassView>
+    )
   return (
     <Pressable
       accessibilityRole="button"
@@ -182,10 +252,11 @@ export function Header({ title, right, back = true }: { title?: string; right?: 
   const c = useColors()
   const goBack = useGoBack()
   const insets = useSafeAreaInsets()
+  const real = useGlass()
   return (
-    <View style={{ paddingTop: insets.top + 4, paddingHorizontal: 8, paddingBottom: 6, flexDirection: 'row', alignItems: 'center', backgroundColor: c.bg }}>
-      {back ? <IconButton name="chevron-back" size={26} label="Back" onPress={goBack} /> : <View style={{ width: 8 }} />}
-      <Txt size={17} weight="700" lines={1} style={{ flex: 1, marginLeft: 4 }}>
+    <View style={{ paddingTop: insets.top + 4, paddingHorizontal: real ? 12 : 8, paddingBottom: 6, flexDirection: 'row', alignItems: 'center', backgroundColor: c.bg }}>
+      {back ? <IconButton name="chevron-back" size={real ? 22 : 26} label="Back" onPress={goBack} glass /> : <View style={{ width: 8 }} />}
+      <Txt size={17} weight="700" lines={1} style={{ flex: 1, marginLeft: real ? 10 : 4 }}>
         {title ?? ''}
       </Txt>
       {right}

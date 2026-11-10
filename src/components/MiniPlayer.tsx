@@ -1,4 +1,5 @@
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect'
+import { GlassView } from 'expo-glass-effect'
+import { glassSupported } from '../lib/glass'
 import { router } from 'expo-router'
 import { ActivityIndicator, Pressable, View } from 'react-native'
 import { next, prev, toggle, usePlayer } from '../lib/player'
@@ -71,7 +72,7 @@ export function MiniPlayer({ variant = 'bar', inline = false }: { variant?: 'bar
 
   if (variant === 'accessory') return content
 
-  if (variant === 'glass' && isLiquidGlassAvailable()) {
+  if (variant === 'glass' && glassSupported()) {
     return (
       <GlassView glassEffectStyle="regular" isInteractive colorScheme="dark" style={{ marginHorizontal: 10, marginBottom: 6, borderRadius: 22, overflow: 'hidden' }}>
         {content}

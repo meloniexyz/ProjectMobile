@@ -1,6 +1,6 @@
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect'
+import { GlassView } from 'expo-glass-effect'
+import { useGlass } from '../lib/glass'
 import { router } from 'expo-router'
-import { useSettings } from '../lib/settings'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Modal, Pressable, ScrollView, Switch, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -21,16 +21,25 @@ export function Toasts() {
   const c = useColors()
   const items = useStore(toastStore, (s) => s.items)
   const insets = useSafeAreaInsets()
+  const glass = useGlass()
   if (!items.length) return null
   return (
     <View pointerEvents="none" style={{ position: 'absolute', left: 12, right: 12, bottom: insets.bottom + 130, gap: 6 }}>
-      {items.map((t) => (
-        <View key={t.id} style={{ backgroundColor: c.text, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 10 }}>
-          <Txt size={14} weight="600" style={{ color: c.bg }}>
-            {t.text}
-          </Txt>
-        </View>
-      ))}
+      {items.map((t) =>
+        glass ? (
+          <GlassView key={t.id} glassEffectStyle="regular" colorScheme="dark" style={{ borderRadius: 22, paddingHorizontal: 16, paddingVertical: 12 }}>
+            <Txt size={14} weight="600">
+              {t.text}
+            </Txt>
+          </GlassView>
+        ) : (
+          <View key={t.id} style={{ backgroundColor: c.text, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 10 }}>
+            <Txt size={14} weight="600" style={{ color: c.bg }}>
+              {t.text}
+            </Txt>
+          </View>
+        ),
+      )}
     </View>
   )
 }
@@ -63,7 +72,7 @@ export function SheetHost() {
 export function Sheet({ visible, onClose, children }: { visible: boolean; onClose: () => void; children: ReactNode }) {
   const c = useColors()
   const insets = useSafeAreaInsets()
-  const glass = useSettings().uiStyle === 'glass' && isLiquidGlassAvailable()
+  const glass = useGlass()
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable accessibilityLabel="Close" style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)' }} onPress={onClose} />

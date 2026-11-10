@@ -38,7 +38,7 @@ export function search(source: SourceId, q: string, limit = 30): Promise<Track[]
 // ---------- Spotify songs: play the same recording from YouTube Music or SoundCloud ----------
 
 /** Efficiency of each codec relative to MP3, for comparing streams across services. */
-const CODEC_EFFICIENCY: Record<StreamPlan['codec'], number> = { aac: 1.15, mp3: 1, flac: 3, alac: 3 }
+const CODEC_EFFICIENCY: Record<StreamPlan['codec'], number> = { opus: 1.5, aac: 1.15, mp3: 1, flac: 3, alac: 3 }
 const effective = (p: StreamPlan) => p.kbps * CODEC_EFFICIENCY[p.codec]
 
 /**

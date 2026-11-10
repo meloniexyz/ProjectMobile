@@ -68,6 +68,7 @@ const kbpsOf = (t: Transcoding) => {
 /**
  * Which stream to use for each quality step. iPhones can't play SoundCloud's Opus streams, so
  * the choices are AAC 96 / 160 (256 on Go+ uploads) over HLS, or MP3 128 as a plain file.
+ * Best and Normal both get AAC 160, the quality SoundCloud's own app streams.
  */
 function pickTranscoding(options: Transcoding[], quality: Quality): Transcoding | null {
   const ok = options.filter(
@@ -79,7 +80,9 @@ function pickTranscoding(options: Transcoding[], quality: Quality): Transcoding 
   const aac = ok.filter((t) => t.preset?.startsWith('aac') && t.format.protocol === 'hls').sort((a, b) => kbpsOf(a) - kbpsOf(b))
   const mp3 = ok.find((t) => t.preset?.startsWith('mp3') && t.format.protocol === 'progressive') ?? ok.find((t) => t.preset?.startsWith('mp3'))
   if (quality === 'best') return aac[aac.length - 1] ?? mp3 ?? null
-  // low / mid: the smallest AAC (usually 96 kbps), else MP3
+  // mid: SoundCloud's standard stream (AAC 160, what its app plays), not more (Go+ 256 stays for Best)
+  if (quality === 'mid') return [...aac].reverse().find((t) => kbpsOf(t) <= 160) ?? aac[aac.length - 1] ?? mp3 ?? null
+  // low: the smallest AAC (usually 96 kbps), else MP3
   return aac[0] ?? mp3 ?? null
 }
 

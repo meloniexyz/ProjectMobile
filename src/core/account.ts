@@ -226,6 +226,18 @@ export interface LocalServer {
 
 const linkKey = (serverId: string, userId: string) => `${serverId}|${userId}`
 
+/** An address compared loosely: scheme and host case, a default port and trailing slashes don't count. */
+export function sameUrl(a: string, b: string) {
+  const norm = (u: string) => {
+    try {
+      return new URL(u.trim()).href.replace(/\/+$/, '')
+    } catch {
+      return u.trim().replace(/\/+$/, '').toLowerCase()
+    }
+  }
+  return norm(a) === norm(b)
+}
+
 /**
  * Compares the account's links with this device's servers. `known` is the links seen at the last
  * sync (kept by the app), which tells a server removed here from one linked somewhere else:
@@ -233,14 +245,21 @@ const linkKey = (serverId: string, userId: string) => `${serverId}|${userId}`
  * - `unlink`: linked before, now gone from here (removed here) -> remove the link
  * - `forget`: saved here, linked before, link gone (removed on another device) -> remove from here
  * - `signIn`: linked but not saved here (new on the account) -> sign in to it on this device
+ * - `move`: saved here and linked, but the owner moved the instance (`assigned`/`owner` link with
+ *   another address) -> switch the saved server to `url`. `user` links never move a server: the
+ *   device keeps the address the person typed.
  */
 export function planLinks(links: AccountLink[], local: LocalServer[], known: string[]) {
   const was = new Set(known)
   const linked = new Map(links.map((l) => [linkKey(l.jellyfinServerId, l.jellyfinUserId), l]))
   const here = new Map(local.map((s) => [linkKey(s.jellyfinId, s.userId), s]))
-  const plan = { link: [] as LocalServer[], unlink: [] as AccountLink[], forget: [] as LocalServer[], signIn: [] as AccountLink[] }
+  const plan = { link: [] as LocalServer[], unlink: [] as AccountLink[], forget: [] as LocalServer[], signIn: [] as AccountLink[], move: [] as { server: LocalServer; url: string }[] }
   for (const [k, s] of here) if (!linked.has(k)) (was.has(k) ? plan.forget : plan.link).push(s)
-  for (const [k, l] of linked) if (!here.has(k)) (was.has(k) ? plan.unlink : plan.signIn).push(l)
+  for (const [k, l] of linked) {
+    const s = here.get(k)
+    if (!s) (was.has(k) ? plan.unlink : plan.signIn).push(l)
+    else if (l.source !== 'user' && !sameUrl(s.url, l.url)) plan.move.push({ server: s, url: l.url })
+  }
   return plan
 }
 

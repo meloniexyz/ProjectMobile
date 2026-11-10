@@ -10,11 +10,11 @@ interface Step<Q extends string> {
   size: string
 }
 
-/** YouTube Music, SoundCloud and Spotify songs (iPhones can't play their Opus streams, so AAC). */
+/** YouTube Music, SoundCloud and Spotify songs: the same streams the services' own apps play. */
 const STREAMING: Step<Quality>[] = [
-  { q: 'low', title: 'Low', size: '~20–45 MB per hour', detail: 'YouTube: AAC ~48 kbps when available · SoundCloud: AAC 96 kbps · Spotify songs: the smallest matching copy' },
-  { q: 'mid', title: 'Mid', size: '~45–60 MB per hour', detail: 'YouTube: AAC 128 kbps · SoundCloud: AAC 96 kbps · Spotify songs: the smaller matching copy' },
-  { q: 'best', title: 'Best', size: '~60–75 MB per hour', detail: 'YouTube: AAC 128–256 kbps · SoundCloud: AAC 160–256 kbps · Spotify songs: the better-sounding copy' },
+  { q: 'low', title: 'Low', size: '~20–45 MB per hour', detail: 'YouTube: Opus ~50–70 kbps · SoundCloud: AAC 96 kbps · Spotify songs: the smallest matching copy' },
+  { q: 'mid', title: 'Mid', size: '~60–70 MB per hour', detail: 'YouTube: Opus ~130–160 kbps · SoundCloud: AAC 160 kbps · Spotify songs: the smaller matching copy' },
+  { q: 'best', title: 'Best', size: '~60–115 MB per hour', detail: 'YouTube: Opus ~130–160 kbps (AAC 256 with Premium) · SoundCloud: AAC 160 (256 on Go+) · Spotify songs: the better-sounding copy' },
 ]
 
 /** Songs from your Jellyfin server: the file itself, or a smaller copy the server makes. */
@@ -117,7 +117,7 @@ export default function QualitySettings() {
 
         <Section
           title={full ? 'Streaming services' : 'Quality'}
-          text="YouTube Music, SoundCloud and Spotify songs. iPhones can't play YouTube's and SoundCloud's Opus streams, so Negusify uses their AAC versions (none of them offer lossless)."
+          text="YouTube Music, SoundCloud and Spotify songs, in the same quality their own apps stream: YouTube's Opus (repacked for the iPhone, not re-encoded) and SoundCloud's AAC 160. None of them offer lossless."
         />
         <Picker title="Wi-Fi streaming" sub="Quality when you're on Wi-Fi" field="wifiQuality" steps={STREAMING} />
         <Picker title="Mobile data streaming" sub="Quality on mobile data. Lower saves data." field="cellularQuality" steps={STREAMING} />

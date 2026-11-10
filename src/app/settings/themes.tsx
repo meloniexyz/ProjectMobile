@@ -21,7 +21,7 @@ export default function Themes() {
             {(
               [
                 { id: 'classic', title: 'Classic', sub: "Negusify's own dark look, like the desktop app", icon: 'albums-outline' },
-                { id: 'glass', title: 'Liquid Glass', sub: 'Native iOS: glass tab bar, floating playing bar and glass sheets', icon: 'water-outline' },
+                { id: 'glass', title: 'Liquid Glass', sub: "Apple's real Liquid Glass: tab bar, playing bar, buttons, player and sheets", icon: 'water-outline' },
               ] as const
             ).map((o) => {
               const on = s.uiStyle === o.id

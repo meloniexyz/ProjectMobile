@@ -56,8 +56,12 @@ export interface MobileSettings {
   showLyrics: boolean
   /** hide local audio under 30 s (samples, voice memos) */
   hideShortClips: boolean
-  /** 'glass' = native iOS look: Liquid Glass tab bar, glass playing bar and sheets */
+  /** 'glass' = native iOS look: Apple's real Liquid Glass on the tab bar, playing bar, sheets, buttons and player */
   uiStyle: 'classic' | 'glass'
+  /** set once the app has switched an older install to Liquid Glass (0.1.7), so choosing Classic afterwards sticks */
+  glassIntroduced?: boolean
+  /** set once every quality setting was raised to the best (0.1.7), so lowering one afterwards sticks */
+  bestQualityIntroduced?: boolean
   /** where Spotify songs play from: the better copy for your quality setting, or a preferred service first */
   spotifySource: 'auto' | 'youtube' | 'soundcloud'
   /** Streaming: the streaming services and local files only. Full: plus a Jellyfin server. null until chosen at first start */
@@ -71,12 +75,12 @@ export interface MobileSettings {
 
 export const DEFAULT_MOBILE_SETTINGS: MobileSettings = {
   wifiQuality: 'best',
-  cellularQuality: 'mid',
+  cellularQuality: 'best',
   downloadQuality: 'best',
   downloadOnCellular: false,
   offlineMode: false,
   jellyfinWifiQuality: 'original',
-  jellyfinCellularQuality: 'mp3-320',
+  jellyfinCellularQuality: 'original',
   jellyfinDownloadQuality: 'original',
   cacheLimitMb: 1024,
   loudnessLevel: 'normal',
@@ -88,7 +92,7 @@ export const DEFAULT_MOBILE_SETTINGS: MobileSettings = {
   logo: 'mark-onsurface',
   showLyrics: true,
   hideShortClips: true,
-  uiStyle: 'classic',
+  uiStyle: 'glass',
   spotifySource: 'auto',
   mode: null,
   statsUnit: 'hour',
@@ -102,7 +106,27 @@ const file = new JsonFile<Partial<MobileSettings>>('settings.json', {})
 export const settingsStore = createStore<{ settings: MobileSettings }>({ settings: DEFAULT_MOBILE_SETTINGS })
 
 export function initSettings() {
-  settingsStore.set({ settings: { ...DEFAULT_MOBILE_SETTINGS, ...file.load() } })
+  const settings: MobileSettings = { ...DEFAULT_MOBILE_SETTINGS, ...file.load() }
+  // 0.1.7: Liquid Glass becomes the look on iPhone; switch older installs over once
+  if (!settings.glassIntroduced) {
+    settings.uiStyle = 'glass'
+    settings.glassIntroduced = true
+    file.set(settings)
+  }
+  // 0.1.7: the best each service offers, on Wi-Fi, mobile data and downloads (lossless from Jellyfin)
+  if (!settings.bestQualityIntroduced) {
+    Object.assign(settings, {
+      wifiQuality: 'best',
+      cellularQuality: 'best',
+      downloadQuality: 'best',
+      jellyfinWifiQuality: 'original',
+      jellyfinCellularQuality: 'original',
+      jellyfinDownloadQuality: 'original',
+      bestQualityIntroduced: true,
+    })
+    file.set(settings)
+  }
+  settingsStore.set({ settings })
 }
 
 export const getSettings = () => settingsStore.get().settings

@@ -9,7 +9,7 @@ import { getPlaylists, localUriFor, saveReceivedSong } from './library'
 import { onWifi } from './net'
 import { getSettings, updateSettings, type MobileSettings } from './settings'
 import { songMatches, soundcloud, spotify, youtube } from './sources'
-import { addSignedOut, remove as removeServer, signIn as signInServer, syncedServers, useSyncedServers, type SyncedServer } from './jellyfin'
+import { addSignedOut, changeAddress, remove as removeServer, signIn as signInServer, syncedServers, useSyncedServers, type SyncedServer } from './jellyfin'
 import { JsonFile } from './storage'
 
 /**
@@ -97,7 +97,15 @@ async function syncLinks(session: AccountSession) {
       }
     addSignedOut(l)
   }
-  if (plan.link.length || plan.signIn.length || plan.forget.length) refreshStatuses()
+  // the owner moved an instance: follow it, keeping the sign-in (same server). If the new address
+  // can't be reached yet or is another server, keep the old one; the next sync tries again.
+  for (const { server, url } of plan.move)
+    try {
+      await changeAddress((server as SyncedServer).id, url)
+    } catch (e) {
+      console.warn('[account] moved server', url, 'keeping', server.url, e)
+    }
+  if (plan.link.length || plan.signIn.length || plan.forget.length || plan.move.length) refreshStatuses()
   save({ links: account.knownLinks(links) })
   linksStore.set({ links })
 }

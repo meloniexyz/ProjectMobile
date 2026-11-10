@@ -4,6 +4,8 @@ import { createStore } from '../core/store'
 import { atLeast, type AnyQuality } from './settings'
 import { cacheDir, downloadsDir, JsonFile } from './storage'
 import { cleanError, otherCopy, resolvePlan, youtube, type StreamPlan } from './sources'
+import { disableOpus } from './sources/youtube'
+import { webmOpusToCaf } from './webmToCaf'
 import type { Track } from '../core/types'
 import { fixFlacLength } from './flacLength'
 
@@ -166,6 +168,19 @@ async function download(track: Track, quality: AnyQuality, pinned: boolean): Pro
       if (!other) throw cleanError(err)
       resolved = other
       bytes = await fetchInto(resolved.plan, tmp)
+    }
+  }
+  if (resolved.plan.remux === 'webm-caf') {
+    try {
+      const caf = webmOpusToCaf(await tmp.bytes())
+      tmp.write(caf)
+      bytes = caf.length
+    } catch (err) {
+      // couldn't repack YouTube's Opus: AAC from now on, and this song again in AAC
+      console.warn('[audioCache] Opus repack', track.title, err)
+      disableOpus()
+      if (tmp.exists) tmp.delete()
+      return download(track, quality, pinned)
     }
   }
   if (resolved.plan.ext === 'flac') {
