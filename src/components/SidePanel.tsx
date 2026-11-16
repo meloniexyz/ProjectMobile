@@ -162,6 +162,7 @@ export function SidePanel() {
           <Item icon="arrow-down-circle-outline" title="Downloads" onPress={() => go('/downloads')} />
           <Item icon="folder-outline" title="Local files" onPress={() => go('/local')} />
           <Item icon="time-outline" title="History" onPress={() => go('/history')} />
+          {st.loggedIn ? <Item icon="trophy-outline" title="Leaderboards" onPress={() => go('/leaderboard')} /> : null}
           {liked.length ? (
             <>
               <Heading>Liked Songs</Heading>

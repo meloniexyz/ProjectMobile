@@ -339,6 +339,22 @@ export async function searchPeople(query: string) {
   return Promise.all(list.map((u) => shown(s, { ...u, banner: null })))
 }
 
+/** A server without leaderboards (plugin not updated yet) answers 404: say so plainly. */
+const noLeaderboards = (e: Error): never => {
+  if (/404|not_found|not found/i.test(e.message)) throw new Error("Your Negusify server doesn't have leaderboards yet (it needs the latest plugin)")
+  throw e
+}
+
+/** Who listened the most since `since` (ms; 0 = all time), among everyone or your friends, `limit` places from `offset`. */
+export async function leaderboard(since: number, scope: 'everyone' | 'friends', offset = 0, limit = 10) {
+  const s = need()
+  const b = await guard(account.leaderboard(s, since, scope, offset, limit)).catch(noLeaderboards)
+  return { ...b, people: await Promise.all(b.people.map(async (p) => ({ ...p, user: await shown(s, { ...p.user, banner: null }) }))) }
+}
+
+/** Someone's place among everyone since `since` (their profile). */
+export const userLeaderboard = (handle: string, since: number) => guard(account.userLeaderboard(need(), handle, since)).catch(noLeaderboards)
+
 export async function person(handle: string) {
   const s = need()
   return shown(s, await guard(account.getUser(s, handle)))

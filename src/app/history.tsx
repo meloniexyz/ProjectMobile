@@ -140,7 +140,7 @@ function Stats({ entries }: { entries: ListenEntry[] }) {
   const c = useColors()
   const unit = useSettings().statsUnit
   // a preset (index into PRESETS) or a custom range
-  const [preset, setPreset] = useState<number | null>(0)
+  const [preset, setPreset] = useState<number | null>(1) // This week
   const [custom, setCustom] = useState<Timeframe | null>(null)
   const [picking, setPicking] = useState(false)
   const [metrics, setMetrics] = useState(DEFAULT_METRIC)

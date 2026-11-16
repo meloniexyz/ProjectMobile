@@ -388,7 +388,7 @@ function LoggedIn({ setMode }: { setMode: (m: Mode | null) => void }) {
                   {d.id === list.thisDevice ? ' · this phone' : ''}
                 </Txt>
                 <Txt tone="text2" size={12}>
-                  {d.platform === 'ios' ? 'iPhone' : d.platform === 'windows' ? 'Windows' : d.platform} · last seen {ago(d.lastSeen)}
+                  {({ ios: 'iPhone', windows: 'Windows', linux: 'Linux', mac: 'macOS' } as Record<string, string>)[d.platform] ?? d.platform} · last seen {ago(d.lastSeen)}
                 </Txt>
               </View>
               {d.id !== list.thisDevice ? (

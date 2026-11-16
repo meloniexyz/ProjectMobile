@@ -22,4 +22,9 @@ same(
   workGroups(['Concerto, Op. 16: Concerto: I. Allegro', 'Concerto, Op. 16: II. Adagio'], t, t).map((g) => [g.start, g.count, g.title]),
   [[0, 2, 'Concerto, Op. 16']],
 )
+// "Op.35" on one movement and "Op. 35" on the others is still one work (Cortot's Chopin, 2021)
+same(
+  workGroups(['Sonata No.2, Op. 35: I. Grave', 'Sonata No.2, Op. 35: II. Scherzo', 'Sonata No.2, Op.35: III. Marche funebre', 'Sonata No.2, Op. 35: IV. Finale'], t, t).map((g) => [g.start, g.count, g.title]),
+  [[0, 4, 'Sonata No.2, Op. 35']],
+)
 console.log('works ok')

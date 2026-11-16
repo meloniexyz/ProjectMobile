@@ -50,6 +50,8 @@ interface ScTrack {
   user?: { username: string; avatar_url?: string }
   publisher_metadata?: { artist?: string; album_title?: string } | null
   media?: { transcodings: Transcoding[] }
+  permalink_url?: string
+  kind?: string
 }
 
 function profileUrl(input: string) {
@@ -304,6 +306,7 @@ class SoundCloud {
       this.known.set(String(t.id), t)
     }
     const art = t.artwork_url || t.user?.avatar_url
+    if (t.permalink_url) this.permalinks.set(String(t.id), t.permalink_url)
     return {
       uid: `soundcloud:${t.id}`,
       source: 'soundcloud',
@@ -314,6 +317,29 @@ class SoundCloud {
       duration: (t.full_duration ?? t.duration) / 1000,
       artwork: art?.replace('-large.', '-t300x300.'),
     }
+  }
+
+  private permalinks = new Map<string, string>()
+
+  /** The song's soundcloud.com page (for Copy link). */
+  async link(id: string): Promise<string> {
+    let url = this.permalinks.get(id)
+    if (!url) {
+      url = (await this.api<ScTrack>(`/tracks/${id}`)).permalink_url
+      if (!url) throw new Error("SoundCloud didn't give this song's link")
+      this.permalinks.set(id, url)
+    }
+    return url
+  }
+
+  /** The song a soundcloud.com (or on.soundcloud.com short) link points to. */
+  async fromLink(url: string): Promise<Track | null> {
+    // short links (on.soundcloud.com/abc) redirect to the real page
+    if (/^https?:\/\/on\.soundcloud\.com\//i.test(url)) url = (await fetch(url, { headers: { 'User-Agent': UA } })).url
+    url = url.replace(/^https?:\/\/(m\.|www\.)?soundcloud\.com/i, 'https://soundcloud.com').split('?')[0]
+    const t = await this.api<ScTrack>('/resolve', { url }).catch(() => null)
+    if (!t || t.kind !== 'track') return null
+    return this.toTrack(t)
   }
 
   async search(query: string, limit = 30): Promise<Track[]> {

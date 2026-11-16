@@ -5,6 +5,7 @@ import { libStore } from './library'
 import { canStream, downloadQualityFor, netStore, onWifi } from './net'
 import { getSettings, settingsStore } from './settings'
 import { cleanError } from './sources'
+import { pruneAlbums, saveAlbumsOf } from './offlineAlbums'
 import { JsonFile } from './storage'
 
 /**
@@ -86,6 +87,7 @@ function releaseUnused() {
   for (const c of Object.values(downloadStore.get().collections)) for (const t of c.tracks) wanted.add(t.uid)
   for (const c of Object.values(file.get())) for (const t of c.tracks) wanted.add(t.uid)
   for (const uid of pinnedUids()) if (!wanted.has(uid)) unpin(uid)
+  pruneAlbums((uid) => wanted.has(uid))
 }
 
 const pinned = new JsonFile<string[]>('downloaded-uids.json', [])
@@ -148,6 +150,8 @@ async function run() {
       const track = nextToDownload()
       if (!track) {
         downloadStore.set({ current: null, paused: null })
+        // albums of songs downloaded before albums were kept, or whose album lookup failed
+        if (!why) void saveAlbumsOf(allDownloadTracks().filter((t) => isDownloaded(t.uid)))
         return
       }
       if (why) {
@@ -161,6 +165,7 @@ async function run() {
         await ensureOnPhone(track, downloadQualityFor(track), true)
         if (!had?.pinned) rememberPinned(track.uid)
         cacheStore.set((s) => ({ version: s.version + 1 }))
+        void saveAlbumsOf([track]) // its album page, for opening it offline
       } catch (err) {
         console.warn('[downloads]', track.title, cleanError(err).message)
         failed.add(track.uid)

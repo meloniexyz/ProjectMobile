@@ -5,6 +5,7 @@ import { ProfileCard } from '../components/Profile'
 import { Empty, Header, Spinner } from '../components/ui'
 import { person, type ShownProfile } from '../lib/sync'
 import { useColors } from '../lib/theme'
+import { ProfileRanks } from './leaderboard'
 
 /** Someone's profile, from Search → Negusify. */
 export default function PersonScreen() {
@@ -20,7 +21,14 @@ export default function PersonScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <Header title={`@${handle}`} />
-      <ScrollView contentContainerStyle={{ paddingBottom: 160 }}>{error ? <Empty icon="person-outline" title={`@${handle}`} text={error} /> : p ? <ProfileCard profile={p} /> : <Spinner />}</ScrollView>
+      <ScrollView contentContainerStyle={{ paddingBottom: 160 }}>{error ? <Empty icon="person-outline" title={`@${handle}`} text={error} /> : p ? (
+          <>
+            <ProfileCard profile={p} />
+            <ProfileRanks handle={handle} />
+          </>
+        ) : (
+          <Spinner />
+        )}</ScrollView>
     </View>
   )
 }

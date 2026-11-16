@@ -347,7 +347,43 @@ export interface FriendsList {
 export interface SocialSettings {
   playlistAudience: 'friends' | 'everyone'
   shareListening: boolean
+  /** shown on the leaderboards (listening time and top songs); missing from servers without leaderboards */
+  leaderboard?: boolean
 }
+
+/** One person on a leaderboard. */
+export interface LeaderboardEntry {
+  rank: number
+  user: PublicProfile
+  /** seconds listened in the period */
+  seconds: number
+  plays: number
+  /** their most played songs in the period (by time heard) */
+  topSongs: { track: Listening['track']; seconds: number; plays: number }[]
+  /** this is you */
+  me: boolean
+}
+
+export interface Leaderboard {
+  people: LeaderboardEntry[]
+  /** your place, also when you're below the list (null: no listening in the period, or you're hidden) */
+  me: { rank: number; seconds: number; plays: number } | null
+  /** how many people listened in the period */
+  total: number
+}
+
+/** Who listened the most since `since` (ms; 0 = all time), among everyone on the server or your friends; `offset`/`limit` page through it. */
+export const leaderboard = (s: AccountSession, since: number, scope: 'everyone' | 'friends', offset = 0, limit = 10) =>
+  call<Leaderboard>('GET', `/v1/leaderboard?since=${Math.max(0, Math.floor(since))}&scope=${scope}&offset=${offset}&limit=${limit}`, undefined, s.token)
+
+/** Someone's place among everyone since `since` (for their profile); place is null when they aren't ranked. */
+export interface LeaderboardPlace {
+  place: { rank: number; seconds: number; plays: number } | null
+  topSongs: LeaderboardEntry['topSongs']
+  total: number
+}
+export const userLeaderboard = (s: AccountSession, handle: string, since: number) =>
+  call<LeaderboardPlace>('GET', `/v1/users/${encodeURIComponent(handle)}/leaderboard?since=${Math.max(0, Math.floor(since))}`, undefined, s.token)
 
 export const friends = (s: AccountSession) => call<FriendsList>('GET', '/v1/friends', undefined, s.token)
 /** Ask someone to be friends (or accept, if they asked you). */

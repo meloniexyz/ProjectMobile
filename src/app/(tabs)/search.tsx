@@ -15,7 +15,10 @@ import { libStore } from '../../lib/library'
 import { canStream, useConnection } from '../../lib/net'
 import { playTracks } from '../../lib/player'
 import { updateSettings, useSettings } from '../../lib/settings'
-import { cleanError, ENTITY_TABS, search, SOURCES } from '../../lib/sources'
+import { cleanError, ENTITY_TABS, fromLink, search, SOURCES } from '../../lib/sources'
+import { looksLikeLink } from '../../core/links'
+import * as Clipboard from 'expo-clipboard'
+import { toast } from '../../lib/ui'
 import { useColors, ui } from '../../lib/theme'
 
 const cache = new Map<string, Track[]>()
@@ -83,20 +86,39 @@ export default function Search() {
           accessibilityLabel="Search"
           value={text}
           onChangeText={setText}
-          placeholder="What do you want to listen to?"
+          placeholder="Search, or paste a song link"
           placeholderTextColor="#666"
           returnKeyType="search"
           onSubmitEditing={() => setQuery(text.trim())}
           autoCorrect={false}
           style={{ flex: 1, color: c.bg, fontSize: 16, paddingVertical: 11, fontWeight: '600' }}
         />
-        {text ? <IconButton name="close-circle" size={20} color={c.bg} label="Clear" onPress={() => setText('')} /> : null}
+        {text ? (
+          <IconButton name="close-circle" size={20} color={c.bg} label="Clear" onPress={() => setText('')} />
+        ) : (
+          <IconButton
+            name="clipboard-outline"
+            size={20}
+            color={c.bg}
+            label="Paste a link"
+            onPress={() =>
+              void Clipboard.getStringAsync().then((t) => {
+                if (looksLikeLink(t)) {
+                  setText(t.trim())
+                  setQuery(t.trim())
+                } else toast('Copy a song link from Spotify, YouTube or SoundCloud first')
+              })
+            }
+          />
+        )}
       </View>
       <View style={{ flexDirection: 'row', gap: 8, padding: ui.pad, paddingBottom: 6 }}>
         <Dropdown multi title="Platforms" label={summary(platforms, platformOptions, 'All platforms')} options={platformOptions} value={platforms} onChange={(v) => updateSettings({ searchPlatforms: v })} />
         <Dropdown multi title="Types" label={summary(types, TYPES, 'All types')} options={TYPES} value={types} onChange={(v) => updateSettings({ searchTypes: v })} />
       </View>
-      {!query ? (
+      {query && looksLikeLink(query) ? (
+        <LinkResult link={query} />
+      ) : !query ? (
         <Empty icon="musical-notes-outline" title="Search YouTube Music, SoundCloud and more" text="Pick platforms and types above; songs from every platform play in the same queue." />
       ) : (
         <ScrollView contentContainerStyle={{ paddingBottom: 160 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
@@ -128,6 +150,32 @@ export default function Search() {
         </ScrollView>
       )}
     </View>
+  )
+}
+
+/** A pasted Spotify / YouTube / SoundCloud song link: the song it points to, ready to play. */
+function LinkResult({ link }: { link: string }) {
+  const [state, setState] = useState<{ loading: boolean; track: Track | null; error?: string }>({ loading: true, track: null })
+  useEffect(() => {
+    let live = true
+    setState({ loading: true, track: null })
+    fromLink(link).then(
+      (track) => live && setState({ loading: false, track }),
+      (e) => live && setState({ loading: false, track: null, error: cleanError(e).message }),
+    )
+    return () => {
+      live = false
+    }
+  }, [link])
+  if (state.loading) return <Spinner />
+  if (!state.track)
+    return <Empty icon="link-outline" title="No song found for this link" text={state.error ?? 'Paste a song link from Spotify, YouTube, YouTube Music or SoundCloud.'} />
+  const t = state.track
+  return (
+    <ScrollView contentContainerStyle={{ paddingBottom: 160 }}>
+      <GroupHeading title="From your link" source={t.source} />
+      <TrackRow track={t} index={0} onPress={() => playTracks([t], 0)} />
+    </ScrollView>
   )
 }
 

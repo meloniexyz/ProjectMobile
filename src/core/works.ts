@@ -114,13 +114,16 @@ export interface WorkGroup {
 }
 
 /** The album's work groups: saved works whose songs sit together, then the title rule for the rest. */
+/** Same work despite spacing differences in the tags ("Op.35" on one movement, "Op. 35" on the next). */
+export const sameWork = (a: string, b: string) => a.replace(/\s+/g, '') === b.replace(/\s+/g, '')
+
 export function workGroups<T>(songs: T[], titleOf: (s: T) => string, idOf: (s: T) => string, saved: SavedWork[] = []): WorkGroup[] {
   const out: WorkGroup[] = []
   const byTitle = (from: number, to: number) => {
     for (let i = from; i < to; ) {
       const split = splitMovement(titleOf(songs[i]))
       let j = i + 1
-      while (split && j < to && splitMovement(titleOf(songs[j]))?.work === split.work) j++
+      while (split && j < to && sameWork(splitMovement(titleOf(songs[j]))?.work ?? '', split.work)) j++
       if (split && j - i >= 2) out.push({ start: i, count: j - i, title: split.work, live: false })
       i = j
     }

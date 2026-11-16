@@ -90,6 +90,14 @@ const toTrack = (t: ApiTrack): Track => ({
 })
 
 const playable = (t: ApiTrack | null | undefined): t is ApiTrack => !!t && !!t.id && !t.is_local && (t.type ?? 'track') === 'track'
+
+const decodeEntities = (s: string) =>
+  s.replace(/&(#x?[0-9a-f]+|amp|quot|apos|lt|gt);/gi, (m, e: string) => {
+    const named: Record<string, string> = { amp: '&', quot: '"', apos: "'", lt: '<', gt: '>' }
+    if (named[e.toLowerCase()]) return named[e.toLowerCase()]
+    const code = e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10)
+    return Number.isFinite(code) ? String.fromCodePoint(code) : m
+  })
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const b64url = (b64: string) => b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 
@@ -253,6 +261,36 @@ class Spotify {
       next = page.next
     }
     return out
+  }
+
+  /** One song by its id (a pasted open.spotify.com link): from the API when connected, else from the song's public page. */
+  async track(id: string): Promise<Track | null> {
+    if (this.saved().refreshToken) {
+      const t = await this.api<ApiTrack>(`/tracks/${encodeURIComponent(id)}`).catch(() => null)
+      if (playable(t)) return toTrack(t)
+    }
+    // the public page carries the song's details for link previews (crawlers get them in the HTML)
+    const res = await fetch(`https://open.spotify.com/track/${encodeURIComponent(id)}`, { headers: { 'User-Agent': 'facebookexternalhit/1.1' } })
+    if (!res.ok) return null
+    const html = await res.text()
+    const metas = [...html.matchAll(/<meta (?:property|name)="([^"]+)" content="([^"]*)"/g)].map((m) => [m[1], decodeEntities(m[2])] as const)
+    const get = (k: string) => metas.find((m) => m[0] === k)?.[1]
+    const title = get('og:title')
+    if (!title || get('og:type') !== 'music.song') return null
+    const desc = (get('og:description') ?? '').split(' · ')
+    const artists = metas.filter((m) => m[0] === 'music:musician_description').map((m) => m[1])
+    return {
+      uid: `spotify:${id}`,
+      source: 'spotify',
+      id,
+      title,
+      artist: artists.join(', ') || desc[0] || 'Unknown Artist',
+      album: desc.length >= 4 ? desc[1] : 'Spotify',
+      duration: Number(get('music:duration')) || 0,
+      artwork: get('og:image'),
+      trackNo: Number(get('music:album:track')) || undefined,
+      year: Number(get('music:release_date')?.slice(0, 4)) || undefined,
+    }
   }
 
   async search(query: string, limit = 30): Promise<Track[]> {

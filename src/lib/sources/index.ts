@@ -7,6 +7,7 @@ import { soundcloud } from './soundcloud'
 import { spotify } from './spotify'
 import type { StreamPlan } from './types'
 import { youtube } from './youtube'
+import { parseSongLink } from '../../core/links'
 
 export { jellyfin, soundcloud, spotify, youtube }
 export type { StreamPlan }
@@ -280,4 +281,29 @@ export function newReleases(maxMinutes: number, force = false) {
     }
   }
   return releases.list
+}
+
+// ---------- song links ----------
+
+/** The song a pasted Spotify / YouTube / SoundCloud link points to (null: not a song link, or not found). */
+export async function fromLink(text: string): Promise<Track | null> {
+  const link = parseSongLink(text)
+  if (!link) return null
+  if (link.source === 'spotify') return spotify.track(link.id)
+  if (link.source === 'youtube') return youtube.track(link.id)
+  return soundcloud.fromLink(link.url)
+}
+
+/** Whether the song has a link to share (Spotify, YouTube Music, SoundCloud). */
+export const hasSongLink = (t: Track) => t.source === 'spotify' || t.source === 'youtube' || t.source === 'soundcloud'
+
+/**
+ * The song's link on its own service: a Spotify song gives its open.spotify.com link even when it
+ * plays from YouTube Music or SoundCloud; SoundCloud songs give their soundcloud.com page.
+ */
+export async function songLink(t: Track): Promise<string> {
+  if (t.source === 'spotify') return `https://open.spotify.com/track/${t.id}`
+  if (t.source === 'youtube') return `https://music.youtube.com/watch?v=${t.id}`
+  if (t.source === 'soundcloud') return soundcloud.link(t.id)
+  throw new Error("This song doesn't have a link")
 }

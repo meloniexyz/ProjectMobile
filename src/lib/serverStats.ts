@@ -10,11 +10,12 @@ import { jellyfin, jellyfinTrackId } from './sources/jellyfin'
  * Negusify on Windows). Otherwise: worked out from this phone's own history.
  */
 
-/** A preset rolling window, or calendar days (YYYY-MM-DD, both inclusive), same as on Windows. */
+/** All time, or calendar days (YYYY-MM-DD, both inclusive), same as on Windows. `label`: the preset's name. */
 export interface Timeframe {
   period?: 'week' | 'all'
   from?: string
   to?: string
+  label?: string
 }
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -23,14 +24,19 @@ export const parseDay = (s: string) => {
   const [y, m, d] = s.split('-').map(Number)
   return new Date(y, m - 1, d)
 }
-/** The last `n` days, today included. */
-const lastDays = (n: number): Timeframe => ({ from: dayString(new Date(Date.now() - (n - 1) * 864e5)), to: dayString(new Date()) })
+/** From the first day of a calendar period through today. */
+const since = (label: string, start: (d: Date) => void): Timeframe => {
+  const d = new Date()
+  start(d)
+  return { from: dayString(d), to: dayString(new Date()), label }
+}
 
 export const PRESETS: { label: string; tf: () => Timeframe }[] = [
-  { label: '1 week', tf: () => ({ period: 'week' }) },
-  { label: '4 weeks', tf: () => lastDays(28) },
-  { label: '6 months', tf: () => lastDays(182) },
-  { label: 'All time', tf: () => ({ period: 'all' }) },
+  { label: 'Today', tf: () => since('Today', () => {}) },
+  { label: 'This week', tf: () => since('This week', (d) => d.setDate(d.getDate() - ((d.getDay() + 6) % 7))) }, // from Monday
+  { label: 'This month', tf: () => since('This month', (d) => d.setDate(1)) },
+  { label: 'This year', tf: () => since('This year', (d) => d.setMonth(0, 1)) },
+  { label: 'All time', tf: () => ({ period: 'all', label: 'All time' }) },
 ]
 
 /** "1 Oct – 15 Oct 2026" */

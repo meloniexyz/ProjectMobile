@@ -1,6 +1,6 @@
 import { GlassContainer, GlassView } from 'expo-glass-effect'
 import { Image } from 'expo-image'
-import { goTo, SheetHost } from '../components/Overlays'
+import { goTo, SheetHost, usePlayerCloser } from '../components/Overlays'
 import { router } from 'expo-router'
 import { useState } from 'react'
 import { ActivityIndicator, Pressable, ScrollView, useWindowDimensions, View } from 'react-native'
@@ -20,6 +20,7 @@ import { openSaveSheet, openTrackSheet } from '../lib/ui'
 
 export default function PlayerScreen() {
   const closePlayer = useGoBack()
+  usePlayerCloser(closePlayer)
   const c = useColors()
   const insets = useSafeAreaInsets()
   const { width } = useWindowDimensions()

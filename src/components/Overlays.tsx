@@ -2,16 +2,19 @@ import { GlassView } from 'expo-glass-effect'
 import { useGlass } from '../lib/glass'
 import { router } from 'expo-router'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Modal, Pressable, ScrollView, Switch, TextInput, View } from 'react-native'
+import { Modal, Pressable, ScrollView, Share, Switch, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { RemotePlaylist, Track } from '../core/types'
 import { createStore, useStore } from '../core/store'
 import { canLike, fetchers, getList, isLikedOn, keys, setLikedOn, addToRemotePlaylist, isConnected } from '../lib/accounts'
 import { isDownloaded } from '../lib/audioCache'
 import { setDownloaded } from '../lib/downloads'
+import { canStream } from '../lib/net'
+import { savedAlbumOf } from '../lib/offlineAlbums'
 import { addToPlaylist, createPlaylist, libStore, removeFromPlaylist } from '../lib/library'
 import { addToQueue, playNext } from '../lib/player'
-import { cleanError, forgetMatch, jellyfin, SOURCES } from '../lib/sources'
+import { cleanError, forgetMatch, hasSongLink, jellyfin, songLink, SOURCES } from '../lib/sources'
+import * as Clipboard from 'expo-clipboard'
 import { useColors, ui } from '../lib/theme'
 import { closeSaveSheet, closeTrackSheet, openSaveSheet, saveSheetStore, toast, toastStore, trackSheetStore } from '../lib/ui'
 import { openEntity } from './EntityList'
@@ -113,14 +116,34 @@ function SheetItem({ icon, title, onPress, danger }: { icon: IconName; title: st
   )
 }
 
+/** Set while the full-screen player is open: it closes before a page opens, or the page would open as a sheet over it. */
+let closePlayer: (() => void) | null = null
+export function usePlayerCloser(close: () => void) {
+  useEffect(() => {
+    closePlayer = close
+    return () => {
+      if (closePlayer === close) closePlayer = null
+    }
+  }, [close])
+}
+
 /** Jellyfin songs: the server's album / artist page; other songs: Search for it (like Windows). */
 export async function goTo(track: Track, kind: 'album' | 'artist') {
+  if (closePlayer) {
+    closePlayer()
+    closePlayer = null
+    await new Promise((r) => setTimeout(r, 0)) // let the player's close land before pushing the page
+  }
   const artist = track.artist.split(',')[0].trim()
   if (track.source === 'jellyfin') {
+    // a downloaded song's album is kept on the phone, so it opens offline too
+    const kept = kind === 'album' ? savedAlbumOf(track.uid) : undefined
+    if (kept && !canStream()) return openEntity(kept.entity)
     try {
       const e = (await jellyfin.trackRefs(track.id))[kind]
       if (e) return openEntity(e)
     } catch (err) {
+      if (kept) return openEntity(kept.entity)
       return toast(cleanError(err).message)
     }
   }
@@ -165,6 +188,22 @@ export function TrackSheet() {
         ) : null}
         {track.album ? <SheetItem icon="disc-outline" title="Go to album" onPress={act(() => goTo(track, 'album'))} /> : null}
         <SheetItem icon="person-outline" title="Go to artist" onPress={act(() => goTo(track, 'artist'))} />
+        {hasSongLink(track) ? (
+          <SheetItem icon="link-outline" title="Copy link" onPress={act(() => {
+            songLink(track).then(
+              (url) => Clipboard.setStringAsync(url).then(() => toast(`Copied the ${SOURCES[track.source].name} link`)),
+              (e) => toast(`Couldn't copy the link: ${cleanError(e).message}`),
+            )
+          })} />
+        ) : null}
+        {hasSongLink(track) ? (
+          <SheetItem icon="share-outline" title="Share" onPress={act(() => {
+            songLink(track).then(
+              (url) => setTimeout(() => void Share.share({ url, message: `${track.title} – ${track.artist}` }), 400),
+              (e) => toast(`Couldn't get the link: ${cleanError(e).message}`),
+            )
+          })} />
+        ) : null}
         {track.source === 'spotify' ? (
           <SheetItem icon="refresh-outline" title="Wrong version? Find it again" onPress={act(() => {
             forgetMatch(track.uid)

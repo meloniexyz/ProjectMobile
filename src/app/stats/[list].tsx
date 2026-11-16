@@ -3,7 +3,7 @@ import { FlatList, View } from 'react-native'
 import { DEFAULT_METRIC, ranked, StatRow, type Metric, type StatsList } from '../../components/StatRow'
 import { Empty, Header, Spinner } from '../../components/ui'
 import { useHistoryEntries } from '../../lib/serverHistory'
-import { rangeLabel, PRESETS, useStats, type Timeframe } from '../../lib/serverStats'
+import { rangeLabel, useStats, type Timeframe } from '../../lib/serverStats'
 import { useSettings } from '../../lib/settings'
 import { useColors } from '../../lib/theme'
 
@@ -18,7 +18,7 @@ export default function StatsListScreen() {
   const { data, loading } = useStats(tf, useHistoryEntries())
   const metric = p.metric ?? DEFAULT_METRIC[p.list]
   const items = data ? ranked(data[p.list], metric) : []
-  const when = tf.period === 'week' ? PRESETS[0].label : tf.period === 'all' ? PRESETS[3].label : rangeLabel(tf)
+  const when = tf.label ?? (tf.period === 'all' ? 'All time' : rangeLabel(tf))
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <Header title={`${TITLES[p.list]} · ${when}`} />

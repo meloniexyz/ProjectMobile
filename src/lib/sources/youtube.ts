@@ -362,6 +362,24 @@ class YouTube {
     }
   }
 
+  /** One song by its video id (a pasted YouTube / YouTube Music link). */
+  async track(id: string): Promise<Track | null> {
+    const yt = await this.search_()
+    const info = await yt.getBasicInfo(id).catch(() => null)
+    const b = info?.basic_info
+    if (!b?.title) return null
+    return {
+      uid: `youtube:${id}`,
+      source: 'youtube',
+      id,
+      title: b.title,
+      artist: (b.author ?? 'Unknown Artist').replace(/\s+-\s+Topic$/, ''),
+      album: 'YouTube Music',
+      duration: b.duration ?? 0,
+      artwork: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+    }
+  }
+
   /** video id -> whether YouTube files it under Music (a video's category never changes) */
   private musicCheck = new Map<string, boolean>()
   private async isMusicVideo(id: string) {

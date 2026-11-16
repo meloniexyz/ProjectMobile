@@ -95,12 +95,15 @@ const toArtist = (a: BaseItemDto, serverId: string): Entity => ({
   artwork: a.ImageTags?.Primary ? `media://jellyfin/${serverId}/Items/${a.Id}/Images/Primary?maxHeight=400&quality=90` : undefined,
 })
 
+/** A compilation with dozens of album artists shows one name instead of a wall of them (like the desktop). */
+const albumArtist = (it: BaseItemDto) => ((it.AlbumArtists?.length ?? 0) > 7 ? 'Various Artists' : it.AlbumArtist)
+
 const toAlbum = (it: BaseItemDto, serverId: string): Entity => ({
   source: 'jellyfin',
   kind: 'album',
   id: jellyfinTrackId(serverId, it.Id),
   name: it.Name || 'Album',
-  subtitle: [it.AlbumArtist, it.ProductionYear].filter(Boolean).join(' · '),
+  subtitle: [albumArtist(it), it.ProductionYear].filter(Boolean).join(' · '),
   artwork: it.ImageTags?.Primary ? `media://jellyfin/${serverId}/Items/${it.Id}/Images/Primary?maxHeight=400&quality=90` : undefined,
 })
 
@@ -274,7 +277,7 @@ export const jellyfin = {
             kind: 'album',
             id: jellyfinTrackId(s.id, it.AlbumId),
             name: it.Album || 'Album',
-            subtitle: it.AlbumArtist ?? undefined,
+            subtitle: albumArtist(it) ?? undefined,
             artwork: it.AlbumPrimaryImageTag ? `media://jellyfin/${s.id}/Items/${it.AlbumId}/Images/Primary?maxHeight=400&quality=90` : undefined,
           }
         : undefined,

@@ -7,7 +7,10 @@ import { TrackList } from '../components/TrackRow'
 import { Button, Empty, ErrorText, Header, Spinner, Txt } from '../components/ui'
 import type { Entity, EntityPage } from '../core/types'
 import { albumNotes, workGroups, type SavedWork } from '../core/works'
+import { isDownloaded } from '../lib/audioCache'
 import { createPlaylist } from '../lib/library'
+import { canStream } from '../lib/net'
+import { saveAlbum, savedAlbum, type SavedAlbum } from '../lib/offlineAlbums'
 import { cleanError, entityPage, jellyfin, SOURCES } from '../lib/sources'
 import { useColors, ui } from '../lib/theme'
 import { toast } from '../lib/ui'
@@ -21,15 +24,33 @@ export default function EntityScreen() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
+  // albums: movements of a classical work grouped under it (saved works from the server first)
+  const [saved, setSaved] = useState<SavedWork[]>([])
+  const jellyfinAlbum = e.source === 'jellyfin' && e.kind === 'album'
+
   const load = useCallback(() => {
     setLoading(true)
     setError(null)
+    // an album with downloaded songs is kept on the phone: shown from there offline
+    const kept = jellyfinAlbum ? savedAlbum(e.id) : undefined
+    const showKept = (k: SavedAlbum) => {
+      setPage({ tracks: k.tracks, playlists: [] })
+      setSaved(k.works)
+      setLoading(false)
+    }
+    if (kept && !canStream()) return showKept(kept)
     entityPage(e).then(
       (p) => {
         setPage(p)
         setLoading(false)
+        if (jellyfinAlbum)
+          void jellyfin.albumWorks(e.id).then((works) => {
+            setSaved(works)
+            if (p.tracks.some((t) => isDownloaded(t.uid))) saveAlbum({ entity: e, tracks: p.tracks, works })
+          })
       },
       (err) => {
+        if (kept) return showKept(kept)
         const msg = cleanError(err).message
         setError(e.source === 'spotify' && /403|forbidden/i.test(msg) ? "Spotify doesn't let apps read this (it's probably made by Spotify)." : msg)
         setLoading(false)
@@ -38,11 +59,6 @@ export default function EntityScreen() {
   }, [raw])
   useEffect(load, [load])
 
-  // albums: movements of a classical work grouped under it (saved works from the server first)
-  const [saved, setSaved] = useState<SavedWork[]>([])
-  useEffect(() => {
-    if (e.source === 'jellyfin' && e.kind === 'album') void jellyfin.albumWorks(e.id).then(setSaved)
-  }, [raw])
   const tracks = page?.tracks ?? []
   const groups = useMemo(
     () => (e.kind === 'album' ? workGroups(tracks, (t) => t.title, (t) => t.id.slice(t.id.indexOf('~') + 1).replace(/-/g, ''), saved) : undefined),
