@@ -1,3 +1,4 @@
+import { chatStore } from '../lib/chats'
 import * as Haptics from 'expo-haptics'
 import { router, type Href } from 'expo-router'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
@@ -95,6 +96,7 @@ export function SidePanel() {
   const st = useStore(syncStore, (s) => s)
   const playlists = useStore(libStore, (s) => s.playlists)
   const accounts = useStore(accountStore, (s) => s.accounts)
+  const unread = useStore(chatStore, (s) => s.unread)
   const logo = useLogo()
   const [width, setWidth] = useState(panelWidth())
   useEffect(() => {
@@ -163,6 +165,21 @@ export function SidePanel() {
           <Item icon="folder-outline" title="Local files" onPress={() => go('/local')} />
           <Item icon="time-outline" title="History" onPress={() => go('/history')} />
           {st.loggedIn ? <Item icon="trophy-outline" title="Leaderboards" onPress={() => go('/leaderboard')} /> : null}
+          {st.loggedIn ? <Item icon="chatbubbles-outline" title={unread ? `Messages (${unread})` : 'Messages'} onPress={() => go('/messages')} /> : null}
+          {playlists.length ? (
+            <>
+              <Heading>Playlists</Heading>
+              {playlists.map((p) => (
+                <Item
+                  key={p.id}
+                  art={<Artwork src={p.cover ?? p.tracks[0]?.artwork} size={32} radius={5} />}
+                  title={p.name}
+                  sub={`${p.tracks.length} songs`}
+                  onPress={() => go({ pathname: '/playlist/[id]', params: { id: p.id } })}
+                />
+              ))}
+            </>
+          ) : null}
           {liked.length ? (
             <>
               <Heading>Liked Songs</Heading>
@@ -176,20 +193,6 @@ export function SidePanel() {
                   }
                   title={SOURCES[s].name}
                   onPress={() => go({ pathname: '/liked/[source]', params: { source: s } })}
-                />
-              ))}
-            </>
-          ) : null}
-          {playlists.length ? (
-            <>
-              <Heading>Playlists</Heading>
-              {playlists.map((p) => (
-                <Item
-                  key={p.id}
-                  art={<Artwork src={p.cover ?? p.tracks[0]?.artwork} size={32} radius={5} />}
-                  title={p.name}
-                  sub={`${p.tracks.length} songs`}
-                  onPress={() => go({ pathname: '/playlist/[id]', params: { id: p.id } })}
                 />
               ))}
             </>

@@ -11,6 +11,8 @@ import { isDownloaded } from '../lib/audioCache'
 import { setDownloaded } from '../lib/downloads'
 import { canStream } from '../lib/net'
 import { savedAlbumOf } from '../lib/offlineAlbums'
+import { shareToFriend } from '../lib/chats'
+import { syncStore } from '../lib/sync'
 import { addToPlaylist, createPlaylist, libStore, removeFromPlaylist } from '../lib/library'
 import { addToQueue, playNext } from '../lib/player'
 import { cleanError, forgetMatch, hasSongLink, jellyfin, songLink, SOURCES } from '../lib/sources'
@@ -208,6 +210,12 @@ export function TrackSheet() {
           <SheetItem icon="refresh-outline" title="Wrong version? Find it again" onPress={act(() => {
             forgetMatch(track.uid)
             toast('Next play searches YouTube Music and SoundCloud again, on all your devices')
+          })} />
+        ) : null}
+        {syncStore.get().loggedIn ? (
+          <SheetItem icon="paper-plane-outline" title="Send to a friend" onPress={act(() => {
+            shareToFriend(track)
+            setTimeout(() => router.push('/messages'), 350)
           })} />
         ) : null}
         {playlistId ? <SheetItem icon="trash-outline" title="Remove from this playlist" danger onPress={act(() => removeFromPlaylist(playlistId, track.uid))} /> : null}

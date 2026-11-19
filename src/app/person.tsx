@@ -1,8 +1,8 @@
-import { useLocalSearchParams } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { ScrollView, View } from 'react-native'
 import { ProfileCard } from '../components/Profile'
-import { Empty, Header, Spinner } from '../components/ui'
+import { Button, Empty, Header, Spinner } from '../components/ui'
 import { person, type ShownProfile } from '../lib/sync'
 import { useColors } from '../lib/theme'
 import { ProfileRanks } from './leaderboard'
@@ -23,7 +23,10 @@ export default function PersonScreen() {
       <Header title={`@${handle}`} />
       <ScrollView contentContainerStyle={{ paddingBottom: 160 }}>{error ? <Empty icon="person-outline" title={`@${handle}`} text={error} /> : p ? (
           <>
-            <ProfileCard profile={p} />
+            <ProfileCard
+              profile={p}
+              actions={<Button small title="Message" icon="chatbubble-outline" kind="secondary" onPress={() => router.push({ pathname: '/chat', params: { handle } })} />}
+            />
             <ProfileRanks handle={handle} />
           </>
         ) : (

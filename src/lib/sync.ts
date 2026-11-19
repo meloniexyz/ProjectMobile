@@ -344,6 +344,32 @@ export async function sendImportedHistory(entries: ListenEntry[], progress: (sen
   return true
 }
 
+// ---------- messages between friends ----------
+
+/** A server without messages (plugin not updated yet) answers 404: say so plainly. */
+const noChats = (e: Error): never => {
+  if (/404|not_found|not found/i.test(e.message) && !/username/i.test(e.message)) throw new Error("Your Negusify server doesn't have messages yet (it needs the latest plugin)")
+  throw e
+}
+
+/** Your conversations (with profile pictures) and how many messages you haven't read. */
+export async function chats() {
+  const s = need()
+  const r = await guard(account.chats(s)).catch(noChats)
+  return { unread: r.unread, chats: await Promise.all(r.chats.map(async (x) => ({ ...x, user: await shown(s, { ...x.user, banner: null }) }))) }
+}
+
+/** Messages with someone (oldest first); marks theirs read. */
+export const chat = (handle: string, opts: { before?: number; after?: number } = {}) => guard(account.chat(need(), handle, opts)).catch(noChats)
+export const sendMessage = (handle: string, msg: { text?: string; track?: account.SharedSong }) => guard(account.sendMessage(need(), handle, msg)).catch(noChats)
+
+/** Your friends (for starting a conversation). */
+export async function friendsList() {
+  const s = need()
+  const f = await guard(account.friends(s))
+  return Promise.all(f.friends.map((x) => shown(s, { ...x.user, banner: null })))
+}
+
 export async function searchPeople(query: string) {
   const s = need()
   const list = await guard(account.searchUsers(s, query))

@@ -410,6 +410,42 @@ export const accountArt = (u?: string | null) => (u?.startsWith('/v1/') ? ACCOUN
 export const userLeaderboard = (s: AccountSession, handle: string, since: number) =>
   call<LeaderboardPlace>('GET', `/v1/users/${encodeURIComponent(handle)}/leaderboard?since=${Math.max(0, Math.floor(since))}`, undefined, s.token)
 
+// ---------- messages between friends ----------
+
+/** A song shared in a message, as the sender's app describes it (cover, title, artist, album). */
+export type SharedSong = Listening['track']
+
+export interface ChatMessage {
+  id: number
+  /** you sent it */
+  mine: boolean
+  text: string
+  track: SharedSong | null
+  at: number
+  /** the recipient has opened the conversation */
+  read: boolean
+}
+
+export interface ChatSummary {
+  user: PublicProfile
+  last: ChatMessage
+  unread: number
+}
+
+/** Your conversations, newest first, and how many messages you haven't read. */
+export const chats = (s: AccountSession) => call<{ chats: ChatSummary[]; unread: number }>('GET', '/v1/chats', undefined, s.token)
+/** Messages with someone (oldest first); `before`: older page, `after`: only new ones. Marks theirs read. */
+export const chat = (s: AccountSession, handle: string, opts: { before?: number; after?: number } = {}) =>
+  call<{ messages: ChatMessage[]; more: boolean; friends: boolean }>(
+    'GET',
+    `/v1/chats/${encodeURIComponent(handle)}?${new URLSearchParams(Object.entries(opts).filter(([, v]) => v != null).map(([k, v]) => [k, String(v)]))}`,
+    undefined,
+    s.token,
+  )
+/** Send a friend text and/or a song. */
+export const sendMessage = async (s: AccountSession, handle: string, msg: { text?: string; track?: SharedSong }) =>
+  (await call<{ message: ChatMessage }>('POST', `/v1/chats/${encodeURIComponent(handle)}`, msg, s.token)).message
+
 export const friends = (s: AccountSession) => call<FriendsList>('GET', '/v1/friends', undefined, s.token)
 /** Ask someone to be friends (or accept, if they asked you). */
 export const addFriend = async (s: AccountSession, handle: string) =>

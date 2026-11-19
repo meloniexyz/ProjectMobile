@@ -2,6 +2,7 @@ import { initAccounts } from './accounts'
 import { repairFlacLengths } from './audioCache'
 import { initDownloads } from './downloads'
 import { initHistory } from './history'
+import { startChatPolling } from './chats'
 import { initLibrary } from './library'
 import { startNetworkWatch } from './net'
 import { startPlayer } from './player'
@@ -32,6 +33,8 @@ export function boot() {
   initSync()
   startJellyfinReports()
   startAppIconSync()
+  // unread messages badge (side panel); first check after the account has loaded
+  setTimeout(() => startChatPolling(), 4000)
   // get YouTube's playback token while the app is in front (it lasts hours)
   setTimeout(() => youtube.warmUp(), 1500)
   // older downloads of server-converted FLAC have no length, so they couldn't be seeked

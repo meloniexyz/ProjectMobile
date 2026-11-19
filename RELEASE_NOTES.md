@@ -1,4 +1,6 @@
-**Install:** download `Negusify-0.1.11.ipa` and install it with [Sideloadly](https://sideloadly.io) using your Apple ID (with a free Apple ID, reinstall every 7 days).
+**Install:** download `Negusify-0.1.12.ipa` and install it with [Sideloadly](https://sideloadly.io) using your Apple ID (with a free Apple ID, reinstall every 7 days).
+
+Negusify for iPhone 0.1.12: Messages with your friends (side panel), with songs shared as cards (cover, title, artist, album, play) from the song menu → Send to a friend, and a Message button on profiles; Playlists now above Liked Songs in the side panel. Messages need the updated Negusify server.
 
 Negusify for iPhone 0.1.11: import your listening history from Spotify (Extended streaming history or account data) and YouTube Music (Google Takeout) in Settings → Import listening history; the plays count in History, Stats and the leaderboards. Plus your friend's leaderboard updates and "Live" on live works.
 
