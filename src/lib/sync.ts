@@ -10,7 +10,7 @@ import { hasNativeAudio, NativeAudio } from '../../modules/negusify-audio'
 import type { AccountDevice, AccountSession, DeviceInfo } from '../core/account'
 import { createStore } from '../core/store'
 import { mergePlaylists, type SyncDoc } from '../core/sync'
-import type { Playlist } from '../core/types'
+import type { ListenEntry, Playlist } from '../core/types'
 import { forgetAccountSignIns, initExtras, syncExtras } from './accountExtras'
 import { getPlaylists, saveCoverBytes, setSyncedPlaylists } from './library'
 import { matchHooks } from './sources'
@@ -333,6 +333,17 @@ async function shown(s: AccountSession, u: account.PublicProfile): Promise<Shown
 }
 
 /** People on Negusify by @username or name (photos only; banners load on their profile). */
+/** Sends imported plays (Spotify / YouTube Music history) to the account, 1000 at a time; false when logged out. */
+export async function sendImportedHistory(entries: ListenEntry[], progress: (sent: number) => void) {
+  if (!syncStore.get().loggedIn) return false
+  const s = need()
+  for (let i = 0; i < entries.length; i += 1000) {
+    await guard(account.sendHistory(s, { entries: entries.slice(i, i + 1000) }))
+    progress(Math.min(entries.length, i + 1000))
+  }
+  return true
+}
+
 export async function searchPeople(query: string) {
   const s = need()
   const list = await guard(account.searchUsers(s, query))
@@ -346,11 +357,18 @@ const noLeaderboards = (e: Error): never => {
 }
 
 /** Who listened the most since `since` (ms; 0 = all time), among everyone or your friends, `limit` places from `offset`. */
-export async function leaderboard(since: number, scope: 'everyone' | 'friends', offset = 0, limit = 10) {
+export async function leaderboard(since: number, scope: 'everyone' | 'friends', offset = 0, limit = 10, by: 'time' | 'plays' = 'time') {
   const s = need()
-  const b = await guard(account.leaderboard(s, since, scope, offset, limit)).catch(noLeaderboards)
+  const b = await guard(account.leaderboard(s, since, scope, offset, limit, by)).catch(noLeaderboards)
   return { ...b, people: await Promise.all(b.people.map(async (p) => ({ ...p, user: await shown(s, { ...p.user, banner: null }) }))) }
 }
+
+/** Who sees you on the leaderboards and in how much detail (and the other sharing settings). */
+export const socialSettings = () => guard(account.socialSettings(need()))
+export const setSocialSettings = (patch: Partial<account.SocialSettings>) => guard(account.setSocialSettings(need(), patch))
+
+/** Someone's most played tracks, artists and albums since `since` (their leaderboard card). */
+export const leaderboardDetails = (handle: string, since: number) => guard(account.leaderboardDetails(need(), handle, since)).catch(noLeaderboards)
 
 /** Someone's place among everyone since `since` (their profile). */
 export const userLeaderboard = (handle: string, since: number) => guard(account.userLeaderboard(need(), handle, since)).catch(noLeaderboards)

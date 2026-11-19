@@ -1,24 +1,37 @@
 import { router } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
-import { Pressable, ScrollView, View } from 'react-native'
+import { Animated, Modal, Pressable, ScrollView, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { Track } from '../core/types'
-import type { LeaderboardEntry } from '../core/account'
-import { plural } from '../core/format'
+import { accountArt, type LeaderboardDetails, type LeaderboardEntry, type SocialSettings } from '../core/account'
+import { formatListeningSeconds, plural, type TimeUnit } from '../core/format'
+import { Dropdown, type DropdownOption } from '../components/Overlays'
+import { updateSettings, useSettings } from '../lib/settings'
 import { useStore } from '../core/store'
 import { AccountAvatar, shownName } from '../components/Profile'
 import { Artwork, Button, Chip, Empty, ErrorText, Header, Spinner, Txt } from '../components/ui'
 import { playTracks } from '../lib/player'
-import { leaderboard, syncStore, userLeaderboard, type ShownProfile } from '../lib/sync'
+import { leaderboard, leaderboardDetails, socialSettings, syncStore, userLeaderboard, type ShownProfile } from '../lib/sync'
 import { useColors, ui } from '../lib/theme'
 import { toast } from '../lib/ui'
 
 /**
  * Leaderboards: the neguses who listened the most (today, this week, this month, this year or
  * ever), among everyone on the server or just your friends, with each one's most played songs.
- * Same as the desktop's Leaderboards page; people can hide themselves in Account -> Sharing.
+ * Same as the desktop's Leaderboards page; people choose who sees them in Settings -> Account.
  */
 
 const PAGE = 10
+
+const UNITS: DropdownOption<TimeUnit>[] = [
+  { value: 'day', label: 'Days' },
+  { value: 'hour', label: 'Hours' },
+  { value: 'minute', label: 'Minutes' },
+]
+const RANK_BY: DropdownOption<'time' | 'plays'>[] = [
+  { value: 'time', label: 'Playtime' },
+  { value: 'plays', label: 'Plays' },
+]
 
 export type Period = 'today' | 'week' | 'month' | 'year' | 'all'
 export const PERIODS: [Period, string][] = [
@@ -64,7 +77,7 @@ export function TopSong({ song, width }: { song: Song; width?: number }) {
       onPress={() => (playable ? playTracks([t as Track], 0) : router.navigate({ pathname: '/search', params: { q: `${t.artist} ${t.title}` } }))}
       style={{ flexDirection: 'row', alignItems: 'center', gap: 8, width }}
     >
-      <Artwork src={t.artwork} size={36} />
+      <Artwork src={accountArt(t.artwork)} size={36} />
       <View style={{ flex: 1 }}>
         <Txt size={13} weight="600" lines={1}>
           {t.title}
@@ -79,15 +92,16 @@ export function TopSong({ song, width }: { song: Song; width?: number }) {
 
 const RANK_COLORS = ['#f5c542', '#c9d1d9', '#d08a4e']
 
-function Row({ p, max }: { p: Board['people'][number]; max: number }) {
+function Row({ p, max, byPlays, unit, open }: { p: Board['people'][number]; max: number; byPlays: boolean; unit: TimeUnit; open: () => void }) {
   const c = useColors()
   const u: ShownProfile = p.user
   return (
     <View style={{ paddingHorizontal: ui.pad, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.line, backgroundColor: p.me ? c.accentSoft : undefined }}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${p.rank}. ${shownName(u)}, ${listenTime(p.seconds)}`}
-        onPress={() => u.handle && router.push({ pathname: '/person', params: { handle: u.handle } })}
+        accessibilityLabel={`${p.rank}. ${shownName(u)}, ${formatListeningSeconds(p.seconds, unit)}, ${plural(p.plays, 'play')}`}
+        accessibilityHint="Shows their top tracks, artists and albums"
+        onPress={open}
         style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
       >
         <Txt size={18} weight="800" style={{ width: 30, textAlign: 'center', color: RANK_COLORS[p.rank - 1] ?? c.text3 }}>
@@ -108,19 +122,23 @@ function Row({ p, max }: { p: Board['people'][number]; max: number }) {
             ) : null}
           </View>
           <View style={{ height: 4, borderRadius: 99, backgroundColor: c.bg3, marginTop: 6, overflow: 'hidden' }}>
-            <View style={{ height: 4, borderRadius: 99, backgroundColor: c.accent, width: `${Math.max(3, (p.seconds / max) * 100)}%` }} />
+            <View style={{ height: 4, borderRadius: 99, backgroundColor: c.accent, width: `${Math.max(3, ((byPlays ? p.plays : p.seconds) / max) * 100)}%` }} />
           </View>
         </View>
         <View style={{ alignItems: 'flex-end' }}>
           <Txt size={14} weight="800">
-            {listenTime(p.seconds)}
+            {byPlays ? plural(p.plays, 'play') : formatListeningSeconds(p.seconds, unit)}
           </Txt>
           <Txt size={12} tone="text2">
-            {plural(p.plays, 'play')}
+            {byPlays ? formatListeningSeconds(p.seconds, unit) : plural(p.plays, 'play')}
           </Txt>
         </View>
       </Pressable>
-      {p.topSongs.length ? (
+      {p.songs === false ? (
+        <Txt tone="text3" size={12} style={{ paddingLeft: 42, marginTop: 6 }}>
+          Shares listening time only
+        </Txt>
+      ) : p.topSongs.length ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 14, paddingLeft: 42, marginTop: 10 }}>
           {p.topSongs.map((s, i) => (
             <TopSong key={i} song={s} width={170} />
@@ -131,11 +149,118 @@ function Row({ p, max }: { p: Board['people'][number]; max: number }) {
   )
 }
 
+type Tab = 'tracks' | 'artists' | 'albums'
+
+/** Someone's card, zoomed in: their top 10 tracks, artists and albums in the period (tap them for their profile). */
+function Details({ p, since, periodName, byPlays, unit, close }: {
+  p: Board['people'][number]
+  since: number
+  periodName: string
+  byPlays: boolean
+  unit: TimeUnit
+  close: () => void
+}) {
+  const c = useColors()
+  const insets = useSafeAreaInsets()
+  const [d, setD] = useState<LeaderboardDetails | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [tab, setTab] = useState<Tab>('tracks')
+  const zoom = useRef(new Animated.Value(0.9)).current
+  useEffect(() => {
+    Animated.spring(zoom, { toValue: 1, useNativeDriver: true, speed: 18, bounciness: 6 }).start()
+    if (p.user.handle) leaderboardDetails(p.user.handle, since).then(setD, (e) => setError(errorText(e)))
+  }, [p.user.handle, since])
+  const sort = <T extends { seconds: number; plays: number }>(l: T[]) => (byPlays ? [...l].sort((a, b) => b.plays - a.plays || b.seconds - a.seconds) : l)
+  const lines =
+    !d ? [] : tab === 'tracks'
+      ? sort(d.tracks).map((s) => ({ art: s.track.artwork, title: s.track.title, sub: s.track.artist, round: false, ...s }))
+      : tab === 'artists'
+        ? sort(d.artists).map((s) => ({ art: s.artist.artwork, title: s.artist.name, sub: undefined, round: true, ...s }))
+        : sort(d.albums).map((s) => ({ art: s.album.artwork, title: s.album.title, sub: s.album.artist, round: false, ...s }))
+  const openProfile = () => {
+    close()
+    if (p.user.handle) router.push({ pathname: '/person', params: { handle: p.user.handle } })
+  }
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={close}>
+      <Pressable onPress={close} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 14, paddingTop: insets.top + 14, paddingBottom: insets.bottom + 14 }}>
+        <Animated.View style={{ transform: [{ scale: zoom }], maxHeight: '100%' }}>
+          <Pressable onPress={() => {}} style={{ backgroundColor: c.bg2, borderRadius: 18, padding: 16, gap: 12, maxHeight: '100%' }}>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Open ${shownName(p.user)}'s profile`} onPress={openProfile} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Txt size={20} weight="800" style={{ color: RANK_COLORS[p.rank - 1] ?? c.text3 }}>
+                #{p.rank}
+              </Txt>
+              <AccountAvatar profile={p.user} size={52} />
+              <View style={{ flex: 1 }}>
+                <Txt size={18} weight="800" lines={1}>
+                  {shownName(p.user)}
+                </Txt>
+                <Txt size={12} tone="text2" lines={2}>
+                  {periodName} · {formatListeningSeconds(p.seconds, unit)} · {plural(p.plays, 'play')}
+                </Txt>
+              </View>
+            </Pressable>
+            {error ? (
+              <ErrorText text={error} />
+            ) : !d ? (
+              <Spinner />
+            ) : !d.songs ? (
+              <Txt tone="text2">{shownName(p.user)} shares only their listening time.</Txt>
+            ) : (
+              <>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <Chip label="Tracks" active={tab === 'tracks'} onPress={() => setTab('tracks')} />
+                  <Chip label="Artists" active={tab === 'artists'} onPress={() => setTab('artists')} />
+                  <Chip label="Albums" active={tab === 'albums'} onPress={() => setTab('albums')} />
+                </View>
+                <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 10 }}>
+                  {lines.map((l, i) => (
+                    <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <Txt size={13} tone="text3" style={{ width: 20, textAlign: 'right' }}>
+                        {i + 1}
+                      </Txt>
+                      <Artwork src={accountArt(l.art)} size={42} radius={l.round ? 21 : 4} />
+                      <View style={{ flex: 1 }}>
+                        <Txt size={14} weight="600" lines={1}>
+                          {l.title}
+                        </Txt>
+                        {l.sub ? (
+                          <Txt size={12} tone="text2" lines={1}>
+                            {l.sub}
+                          </Txt>
+                        ) : null}
+                      </View>
+                      <Txt size={12} tone="text2">
+                        {byPlays ? plural(l.plays, 'play') : formatListeningSeconds(l.seconds, unit)}
+                      </Txt>
+                    </View>
+                  ))}
+                </ScrollView>
+              </>
+            )}
+            <Button kind="secondary" title="Close" onPress={close} />
+          </Pressable>
+        </Animated.View>
+      </Pressable>
+    </Modal>
+  )
+}
+
 export default function LeaderboardScreen() {
   const c = useColors()
   const loggedIn = useStore(syncStore, (s) => s.loggedIn)
+  // who sees you: 'nobody' is on no board, 'friends' not on Everyone -- say so instead of leaving you wondering
+  const [audience, setAudience] = useState<SocialSettings['leaderboardAudience']>()
+  useEffect(() => {
+    if (loggedIn) socialSettings().then((s) => setAudience(s.leaderboardAudience), () => {})
+  }, [loggedIn])
+  const hidden = audience === 'nobody'
   const [period, setPeriod] = useState<Period>('week')
   const [scope, setScope] = useState<'everyone' | 'friends'>('everyone')
+  // like History's stats: rank by playtime or plays; time in the same unit History uses
+  const [by, setBy] = useState<'time' | 'plays'>('time')
+  const unit = useSettings().statsUnit
+  const [open, setOpen] = useState<Board['people'][number] | null>(null)
   const [board, setBoard] = useState<Board | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [more, setMore] = useState(false)
@@ -148,7 +273,7 @@ export default function LeaderboardScreen() {
     setError(null)
     shown.current = PAGE
     const load = () =>
-      leaderboard(periodStart(period), scope, 0, Math.min(100, shown.current)).then(
+      leaderboard(periodStart(period), scope, 0, Math.min(100, shown.current), by).then(
         (b) => live && setBoard(b),
         (e) => live && setError(errorText(e)),
       )
@@ -158,13 +283,13 @@ export default function LeaderboardScreen() {
       live = false
       clearInterval(t)
     }
-  }, [loggedIn, period, scope])
+  }, [loggedIn, period, scope, by])
 
   const showMore = async () => {
     if (!board) return
     setMore(true)
     try {
-      const next = await leaderboard(periodStart(period), scope, board.people.length, PAGE)
+      const next = await leaderboard(periodStart(period), scope, board.people.length, PAGE, by)
       shown.current = board.people.length + next.people.length
       setBoard({ ...next, people: [...board.people, ...next.people.filter((p) => p.rank > board.people.length)] })
     } catch (e) {
@@ -174,7 +299,7 @@ export default function LeaderboardScreen() {
     }
   }
 
-  const max = board?.people[0]?.seconds || 1
+  const max = (by === 'plays' ? board?.people[0]?.plays : board?.people[0]?.seconds) || 1
   const meListed = board?.people.some((p) => p.me)
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
@@ -191,22 +316,40 @@ export default function LeaderboardScreen() {
           <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: ui.pad, paddingBottom: 8 }}>
             <Chip label="Everyone" active={scope === 'everyone'} onPress={() => setScope('everyone')} />
             <Chip label="Friends" active={scope === 'friends'} onPress={() => setScope('friends')} />
+            <View style={{ flex: 1 }} />
+            <Dropdown title="Rank by" label={RANK_BY.find((r) => r.value === by)!.label} options={RANK_BY} value={[by]} onChange={([v]) => setBy(v)} />
+            <Dropdown title="Show time in" label={UNITS.find((u) => u.value === unit)!.label} options={UNITS} value={[unit]} onChange={([u]) => updateSettings({ statsUnit: u })} />
           </View>
+          {hidden ? (
+            <Pressable accessibilityRole="button" onPress={() => router.push('/settings/account')} style={{ paddingHorizontal: ui.pad, paddingBottom: 8 }}>
+              <Txt tone="text2" size={13}>
+                You're hidden from the leaderboards. <Txt size={13} style={{ color: c.accent }}>Choose who sees you</Txt>
+              </Txt>
+            </Pressable>
+          ) : null}
           {error ? (
             <ErrorText text={error} />
           ) : !board ? (
             <Spinner />
           ) : board.people.length === 0 ? (
-            <Empty icon="trophy-outline" title="Nobody yet" text={`No listening ${period === 'all' ? 'yet' : PERIODS.find((p) => p[0] === period)![1].toLowerCase()}.`} />
+            <Empty
+              icon="trophy-outline"
+              title="Nobody yet"
+              text={
+                (scope === 'friends' ? 'No listening from you or your friends ' : 'Nobody who shares with everyone listened ') +
+                (period === 'all' ? 'yet.' : `${PERIODS.find((p) => p[0] === period)![1].toLowerCase()}.`) +
+                (scope === 'everyone' && audience === 'friends' ? " You share with friends only, so you're on the Friends board." : '')
+              }
+            />
           ) : (
             <>
               {board.me && !meListed ? (
                 <Txt tone="text2" style={{ paddingHorizontal: ui.pad, paddingBottom: 6 }}>
-                  You're #{board.me.rank} of {board.total} with {listenTime(board.me.seconds)}.
+                  You're #{board.me.rank} of {board.total} with {by === 'plays' ? plural(board.me.plays, 'play') : formatListeningSeconds(board.me.seconds, unit)}.
                 </Txt>
               ) : null}
               {board.people.map((p) => (
-                <Row key={p.user.handle ?? p.rank} p={p} max={max} />
+                <Row key={p.user.handle ?? p.rank} p={p} max={max} byPlays={by === 'plays'} unit={unit} open={() => setOpen(p)} />
               ))}
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: ui.pad }}>
                 <Txt tone="text2" size={13}>
@@ -217,10 +360,20 @@ export default function LeaderboardScreen() {
             </>
           )}
           <Txt tone="text3" size={12} style={{ paddingHorizontal: ui.pad, paddingTop: 6 }}>
-            Listening time counts what you actually heard, on all your devices.
+            Listening time counts what you actually heard, on all your devices. Tap someone for their top tracks, artists and albums.
           </Txt>
         </ScrollView>
       )}
+      {open ? (
+        <Details
+          p={open}
+          since={periodStart(period)}
+          periodName={PERIODS.find((x) => x[0] === period)![1]}
+          byPlays={by === 'plays'}
+          unit={unit}
+          close={() => setOpen(null)}
+        />
+      ) : null}
     </View>
   )
 }
@@ -263,7 +416,7 @@ export function ProfileRanks({ handle }: { handle: string }) {
               {PERIODS.find((p) => p[0] === period)![1]}
             </Txt>
             <Txt size={12} tone="text2" lines={1}>
-              {r.place ? listenTime(r.place.seconds) : 'Not ranked'}
+              {r.place ? `${listenTime(r.place.seconds)}${r.scope === 'friends' ? ' · friends' : ''}` : 'Not ranked'}
             </Txt>
           </Pressable>
         ))}

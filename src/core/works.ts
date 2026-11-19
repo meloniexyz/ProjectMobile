@@ -67,12 +67,25 @@ function partialDate(d?: string) {
 
 const locationOf = (w: SavedWork) => [w.Venue, w.City, w.Country].filter(Boolean).join(', ')
 
-/** "1932, Nov 11 – 1932, Nov 12, Abbey Road Studios, London, United Kingdom" */
-export function performedLine(w: SavedWork, omitLocation = false) {
+function dateOf(w: SavedWork) {
   const a = partialDate(w.PerformanceDateStart)
   const b = partialDate(w.PerformanceDateEnd)
-  const date = a && b && a !== b ? `${a} – ${b}` : a || b
-  return [date, omitLocation ? '' : locationOf(w)].filter(Boolean).join(', ')
+  return a && b && a !== b ? `${a} – ${b}` : a || b
+}
+
+const MONTHS_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+
+/** For the album banner: "November 21, 1976" / "November 1976" / "1976"; a range stays short. */
+function longDate(w: SavedWork) {
+  if (w.PerformanceDateEnd && w.PerformanceDateEnd !== w.PerformanceDateStart) return dateOf(w)
+  const [y, m, d] = (w.PerformanceDateStart ?? '').split('-')
+  const month = m ? MONTHS_LONG[Number(m) - 1] : ''
+  return d ? `${month} ${Number(d)}, ${y}` : month ? `${month} ${y}` : y
+}
+
+/** "1932, Nov 11 – 1932, Nov 12, Abbey Road Studios, London, United Kingdom" (minus what the album banner says) */
+export function performedLine(w: SavedWork, omitLocation = false, omitDate = false) {
+  return [omitDate ? '' : dateOf(w), omitLocation ? '' : locationOf(w)].filter(Boolean).join(', ')
 }
 
 /**
@@ -82,9 +95,15 @@ export function performedLine(w: SavedWork, omitLocation = false) {
 export function albumNotes<T extends { title: string; composers?: string[] }>(songs: T[], idOf: (s: T) => string, saved: SavedWork[] = []) {
   const banners: string[] = []
   const lines = new Map<number, string>()
+  /** songs with a red "Live" after the title (one-song live works) */
+  const live = new Set<number>()
   const located = saved.filter((w) => locationOf(w))
   const sameLocation = located.length >= 2 && located.every((w) => locationOf(w) === locationOf(located[0]))
-  if (sameLocation) banners.push(`All tracks performed at ${locationOf(located[0])}.`)
+  // like the one-composer banner: a date every work shares goes on top instead of on every row
+  const sameDate = saved.length >= 2 && saved.every((w) => dateOf(w) && dateOf(w) === dateOf(saved[0]))
+  const where = sameLocation ? ` at ${locationOf(located[0])}` : ''
+  const when = sameDate ? `${where ? ',' : ''} ${longDate(saved[0])}` : ''
+  if (where || when) banners.push(`All tracks performed${where}${when}.`)
   const withComposer = songs.filter((s) => s.composers?.length)
   const key = (s: T) => [...(s.composers ?? [])].sort().join('|')
   const oneComposer = withComposer.length >= 2 && withComposer.every((s) => s.composers!.length === 1 && key(s) === key(withComposer[0]))
@@ -95,14 +114,14 @@ export function albumNotes<T extends { title: string; composers?: string[] }>(so
     const w = workOf.get(idOf(s))
     const parts: string[] = []
     if (w) {
-      const p = performedLine(w, sameLocation)
-      if (w.IsLive && w.TrackItemIds.length === 1) parts.push('Live')
+      const p = performedLine(w, sameLocation, sameDate)
+      if (w.IsLive && w.TrackItemIds.length === 1) live.add(i)
       if (p) parts.push(`Performed ${p}`)
     }
     if (!oneComposer && s.composers?.length) parts.push(`Composed by ${s.composers.join(', ')}`)
     if (parts.length) lines.set(i, parts.join(' · '))
   })
-  return { banners, lines }
+  return { banners, lines, live }
 }
 
 /** A group of consecutive songs: `start` and `count` index into the album's songs. */

@@ -54,6 +54,7 @@ export function TrackRow({
   title,
   indent,
   note,
+  live,
   hideArt,
 }: {
   track: Track
@@ -67,6 +68,8 @@ export function TrackRow({
   indent?: boolean
   /** an extra line under the artist ("Performed 1932, Nov 11, Abbey Road Studios…") */
   note?: string
+  /** a red "Live" after the title, like Roon */
+  live?: boolean
   /** album pages: every song has the album's cover, so show the track number instead */
   hideArt?: boolean
 }) {
@@ -116,6 +119,7 @@ export function TrackRow({
           <Txt size={15} weight="600" lines={1} tone={active ? 'accent' : 'text'} style={{ flexShrink: 1 }}>
             {title ?? track.title}
           </Txt>
+          {live ? <LiveTag /> : null}
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 }}>
           {downloaded ? <Icon name="arrow-down-circle" size={13} color={c.accent} /> : null}
@@ -137,6 +141,17 @@ export function TrackRow({
   )
 }
 
+const LIVE_RED = '#ff5d6c'
+
+/** Roon-style live marker after a title. */
+function LiveTag() {
+  return (
+    <Txt size={11} weight="700" style={{ color: LIVE_RED }}>
+      Live
+    </Txt>
+  )
+}
+
 /** A list of songs; tapping one plays the list from there. */
 export function TrackList({
   tracks,
@@ -149,11 +164,14 @@ export function TrackList({
   empty,
   onEndReached,
   notes,
+  live,
   hideArt,
 }: {
   tracks: Track[]
   /** extra line per song, by index */
   notes?: Map<number, string>
+  /** songs with a red "Live" after the title, by index */
+  live?: Set<number>
   /** album pages: no cover on each row (they're all the album's) */
   hideArt?: boolean
   header?: React.ReactElement | null
@@ -190,6 +208,7 @@ export function TrackList({
         title={item.movement}
         indent={item.movement !== undefined}
         note={notes?.get(item.i)}
+        live={live?.has(item.i)}
         hideArt={hideArt}
         onPress={() => playTracks(tracks, item.i)}
       />
@@ -253,12 +272,8 @@ function WorkHeader({ group: g, tracks }: { group: WorkGroup; tracks: Track[] })
         <View style={{ flex: 1, minWidth: 0 }}>
           <Txt size={15} weight="800" lines={2}>
             {g.title}
+            {g.live ? <Txt size={11} weight="700" style={{ color: LIVE_RED }}>{'  Live'}</Txt> : null}
           </Txt>
-          {g.live ? (
-            <Txt tone="accent" size={11} weight="800">
-              LIVE
-            </Txt>
-          ) : null}
         </View>
         <Txt tone="text2" size={13}>
           {fmtTime(total)}

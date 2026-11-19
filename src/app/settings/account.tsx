@@ -2,11 +2,25 @@ import * as Clipboard from 'expo-clipboard'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { Alert, KeyboardAvoidingView, ScrollView, TextInput, View } from 'react-native'
-import { Button, Header, Txt } from '../../components/ui'
+import { Button, Chip, Header, Txt } from '../../components/ui'
 import { HandleInput, maskEmail, ProfileCard } from '../../components/Profile'
-import type { AccountDevice } from '../../core/account'
+import type { AccountDevice, SocialSettings } from '../../core/account'
 import { useStore } from '../../core/store'
-import { changePassword, deleteAccount, devices, logIn, logOut, ownerReset, recover, removeDevice, signUp, syncNow, syncStore } from '../../lib/sync'
+import {
+  changePassword,
+  deleteAccount,
+  devices,
+  logIn,
+  logOut,
+  ownerReset,
+  recover,
+  removeDevice,
+  setSocialSettings,
+  signUp,
+  socialSettings,
+  syncNow,
+  syncStore,
+} from '../../lib/sync'
 import { relayStore } from '../../lib/accountExtras'
 import { useColors, ui } from '../../lib/theme'
 import { toast } from '../../lib/ui'
@@ -319,6 +333,69 @@ function relayText(r: { waitingForDevice: number; waitingForSpace: number; waiti
   return parts.length ? `Local songs: ${parts.join(', ')}.` : ''
 }
 
+/** Who sees you on the leaderboards (nobody / friends / everyone) and whether they see your top songs. Same as the desktop's Account → Sharing. */
+function LeaderboardSharing() {
+  const [s, setS] = useState<SocialSettings | null>(null)
+  useEffect(() => {
+    socialSettings().then(setS, () => {}) // older server: no card
+  }, [])
+  if (!s?.leaderboardAudience) return null
+  const change = (patch: Partial<SocialSettings>) => setSocialSettings(patch).then(setS, (e) => toast(message(e)))
+  const hidden = s.leaderboardAudience === 'nobody'
+  return (
+    <Card>
+      <Txt size={16} weight="800">
+        Leaderboards
+      </Txt>
+      <Txt tone="text2" size={13}>
+        Who sees your listening time
+      </Txt>
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        {(
+          [
+            ['nobody', 'Nobody'],
+            ['friends', 'Friends'],
+            ['everyone', 'Everyone'],
+          ] as const
+        ).map(([v, label]) => (
+          <Chip key={v} label={label} active={s.leaderboardAudience === v} onPress={() => void change({ leaderboardAudience: v })} />
+        ))}
+      </View>
+      <Txt tone="text2" size={13}>
+        What they see
+      </Txt>
+      <View style={{ flexDirection: 'row', gap: 8, opacity: hidden ? 0.4 : 1 }} pointerEvents={hidden ? 'none' : 'auto'}>
+        {(
+          [
+            ['time', 'Listening time'],
+            ['songs', 'Time and tracks'],
+          ] as const
+        ).map(([v, label]) => (
+          <Chip key={v} label={label} active={(s.leaderboardDetail ?? 'time') === v} onPress={() => void change({ leaderboardDetail: v })} />
+        ))}
+      </View>
+      {s.leaderboardPast !== undefined ? (
+        <>
+          <Txt tone="text2" size={13}>
+            Listening that counts
+          </Txt>
+          <View style={{ flexDirection: 'row', gap: 8, opacity: hidden ? 0.4 : 1 }} pointerEvents={hidden ? 'none' : 'auto'}>
+            <Chip label="Past listening too" active={s.leaderboardPast} onPress={() => void change({ leaderboardPast: true })} />
+            <Chip label="From now on" active={!s.leaderboardPast} onPress={() => void change({ leaderboardPast: false })} />
+          </View>
+        </>
+      ) : null}
+      <Txt tone="text3" size={12}>
+        {hidden
+          ? "You're on no leaderboard, not even your friends'."
+          : s.leaderboardPast === false
+            ? `Only what you listen to from ${new Date(s.leaderboardFrom || Date.now()).toLocaleDateString()} on counts. Tracks: the tracks, artists and albums you play the most.`
+            : 'Tracks: the tracks, artists and albums you play the most.'}
+      </Txt>
+    </Card>
+  )
+}
+
 function LoggedIn({ setMode }: { setMode: (m: Mode | null) => void }) {
   const c = useColors()
   const st = useStore(syncStore, (s) => s)
@@ -353,6 +430,7 @@ function LoggedIn({ setMode }: { setMode: (m: Mode | null) => void }) {
           Only you see it. Your profile shows your @username instead.
         </Txt>
       </Card>
+      <LeaderboardSharing />
       <Card>
         <Txt size={18} weight="800">
           Sync

@@ -78,6 +78,7 @@ export default function EntityScreen() {
         tracks={tracks}
         groups={groups}
         notes={notes?.lines}
+        live={notes?.live}
         hideArt={sameCover}
         onRefresh={load}
         refreshing={loading && !!page}

@@ -295,7 +295,7 @@ export async function fromLink(text: string): Promise<Track | null> {
 }
 
 /** Whether the song has a link to share (Spotify, YouTube Music, SoundCloud). */
-export const hasSongLink = (t: Track) => t.source === 'spotify' || t.source === 'youtube' || t.source === 'soundcloud'
+export const hasSongLink = (t: Track) => (t.source === 'spotify' && !t.id.startsWith('name:')) || t.source === 'youtube' || t.source === 'soundcloud'
 
 /**
  * The song's link on its own service: a Spotify song gives its open.spotify.com link even when it

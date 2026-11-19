@@ -21,6 +21,13 @@ export function replaceHistory(list: ListenEntry[]) {
   file.set(list)
 }
 
+/** Adds imported plays (Spotify / YouTube Music exports): the newest ones stay on the phone, all go to the account. */
+export function importToHistory(entries: ListenEntry[]) {
+  if (!entries.length) return
+  const next = [...historyStore.get().entries, ...entries].sort((a, b) => b.startedAt - a.startedAt).slice(0, MAX)
+  replaceHistory(next)
+}
+
 export function initHistory() {
   historyStore.set({ entries: file.get() })
 }

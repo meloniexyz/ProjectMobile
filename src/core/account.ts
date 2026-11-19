@@ -347,8 +347,16 @@ export interface FriendsList {
 export interface SocialSettings {
   playlistAudience: 'friends' | 'everyone'
   shareListening: boolean
-  /** shown on the leaderboards (listening time and top songs); missing from servers without leaderboards */
+  /** shown on the leaderboards at all (older servers only have this) */
   leaderboard?: boolean
+  /** who sees you on the leaderboards; missing from servers without leaderboard privacy */
+  leaderboardAudience?: 'nobody' | 'friends' | 'everyone'
+  /** what they see: your listening time only, or your most played songs too */
+  leaderboardDetail?: 'time' | 'songs'
+  /** your listening from before you opted in counts too (false: only from leaderboardFrom on) */
+  leaderboardPast?: boolean
+  /** when "only from now on" started (ms; 0 = past listening counts too) */
+  leaderboardFrom?: number
 }
 
 /** One person on a leaderboard. */
@@ -362,6 +370,8 @@ export interface LeaderboardEntry {
   topSongs: { track: Listening['track']; seconds: number; plays: number }[]
   /** this is you */
   me: boolean
+  /** false: they share only their listening time (topSongs is empty); missing on older servers */
+  songs?: boolean
 }
 
 export interface Leaderboard {
@@ -373,15 +383,30 @@ export interface Leaderboard {
 }
 
 /** Who listened the most since `since` (ms; 0 = all time), among everyone on the server or your friends; `offset`/`limit` page through it. */
-export const leaderboard = (s: AccountSession, since: number, scope: 'everyone' | 'friends', offset = 0, limit = 10) =>
-  call<Leaderboard>('GET', `/v1/leaderboard?since=${Math.max(0, Math.floor(since))}&scope=${scope}&offset=${offset}&limit=${limit}`, undefined, s.token)
+export const leaderboard = (s: AccountSession, since: number, scope: 'everyone' | 'friends', offset = 0, limit = 10, by: 'time' | 'plays' = 'time') =>
+  call<Leaderboard>('GET', `/v1/leaderboard?since=${Math.max(0, Math.floor(since))}&scope=${scope}&offset=${offset}&limit=${limit}&by=${by}`, undefined, s.token)
 
 /** Someone's place among everyone since `since` (for their profile); place is null when they aren't ranked. */
 export interface LeaderboardPlace {
   place: { rank: number; seconds: number; plays: number } | null
   topSongs: LeaderboardEntry['topSongs']
   total: number
+  /** which board the place is on: everyone, or (they share with friends only) your friends */
+  scope?: 'everyone' | 'friends'
 }
+/** Someone's most played tracks, artists and albums since `since` (the card opened on the leaderboard); empty when they share only their time. */
+export interface LeaderboardDetails {
+  tracks: LeaderboardEntry['topSongs']
+  artists: { artist: { name: string; artwork?: string | null }; seconds: number; plays: number }[]
+  albums: { album: { title: string; artist?: string; artwork?: string | null }; seconds: number; plays: number }[]
+  songs: boolean
+}
+export const leaderboardDetails = (s: AccountSession, handle: string, since: number, limit = 10) =>
+  call<LeaderboardDetails>('GET', `/v1/users/${encodeURIComponent(handle)}/leaderboard/details?since=${Math.max(0, Math.floor(since))}&limit=${limit}`, undefined, s.token)
+
+/** Leaderboard covers from the account server come as /v1/art/<id>: put its address in front. */
+export const accountArt = (u?: string | null) => (u?.startsWith('/v1/') ? ACCOUNT_SERVER + u : (u ?? undefined))
+
 export const userLeaderboard = (s: AccountSession, handle: string, since: number) =>
   call<LeaderboardPlace>('GET', `/v1/users/${encodeURIComponent(handle)}/leaderboard?since=${Math.max(0, Math.floor(since))}`, undefined, s.token)
 

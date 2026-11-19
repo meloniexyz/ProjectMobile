@@ -156,6 +156,13 @@ export default function Settings() {
 
         <Group title="Privacy" />
         <Row
+          title="Import listening history"
+          sub="Your Spotify and YouTube Music history (their data exports) in History, Stats and the leaderboards"
+          icon="cloud-download-outline"
+          onPress={() => router.push('/settings/import')}
+          chevron
+        />
+        <Row
           title="Clear listening history"
           icon="trash-outline"
           onPress={() =>
