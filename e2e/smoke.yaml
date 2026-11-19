@@ -95,6 +95,9 @@ appId: com.negusify.app
 - scrollUntilVisible:
     element:
       id: "settings-diagnostics"
+    # the last row sits right above the playing bar: mostly visible is enough
+    visibilityPercentage: 50
+    timeout: 30000
 # then to the end of Settings: the space under the last row keeps it clear of the playing bar
 - scroll
 - waitForAnimationToEnd
