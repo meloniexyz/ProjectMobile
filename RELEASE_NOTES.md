@@ -1,4 +1,6 @@
-**Install:** download `Negusify-0.1.12.ipa` and install it with [Sideloadly](https://sideloadly.io) using your Apple ID (with a free Apple ID, reinstall every 7 days).
+**Install:** download `Negusify-0.1.13.ipa` and install it with [Sideloadly](https://sideloadly.io) using your Apple ID (with a free Apple ID, reinstall every 7 days).
+
+Negusify for iPhone 0.1.13: statuses like Discord (Online, Idle, Do Not Disturb, Invisible): tap your status under your name in the side panel; friends show a dot on their picture in Messages and on their profile. Do Not Disturb stops message buzzes. In a chat: a bell to mute it, and messages sent in the same minute share one time (like WhatsApp). New messages buzz and show a banner while the app is open. Statuses need the updated Negusify server.
 
 Negusify for iPhone 0.1.12: Messages with your friends (side panel), with songs shared as cards (cover, title, artist, album, play) from the song menu → Send to a friend, and a Message button on profiles; Playlists now above Liked Songs in the side panel. Messages need the updated Negusify server.
 

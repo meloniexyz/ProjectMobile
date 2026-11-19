@@ -3,6 +3,7 @@ import { repairFlacLengths } from './audioCache'
 import { initDownloads } from './downloads'
 import { initHistory } from './history'
 import { startChatPolling } from './chats'
+import { startStatus } from './status'
 import { initLibrary } from './library'
 import { startNetworkWatch } from './net'
 import { startPlayer } from './player'
@@ -35,6 +36,8 @@ export function boot() {
   startAppIconSync()
   // unread messages badge (side panel); first check after the account has loaded
   setTimeout(() => startChatPolling(), 4000)
+  // online / idle / do not disturb / invisible, and friends' statuses
+  setTimeout(() => startStatus(), 4000)
   // get YouTube's playback token while the app is in front (it lasts hours)
   setTimeout(() => youtube.warmUp(), 1500)
   // older downloads of server-converted FLAC have no length, so they couldn't be seeked

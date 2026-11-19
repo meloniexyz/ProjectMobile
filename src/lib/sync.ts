@@ -364,10 +364,21 @@ export const chat = (handle: string, opts: { before?: number; after?: number } =
 export const sendMessage = (handle: string, msg: { text?: string; track?: account.SharedSong }) => guard(account.sendMessage(need(), handle, msg)).catch(noChats)
 
 /** Your friends (for starting a conversation). */
+/** Your friends' profiles, each with their status (online, idle, …; missing on older servers). */
 export async function friendsList() {
   const s = need()
   const f = await guard(account.friends(s))
-  return Promise.all(f.friends.map((x) => shown(s, { ...x.user, banner: null })))
+  return Promise.all(f.friends.map(async (x) => ({ ...(await shown(s, { ...x.user, banner: null })), status: x.status })))
+}
+
+/** This app checking in (every minute while open): keeps you online; `status` changes yours. Null: server without statuses. */
+export async function checkIn(status?: account.PickedStatus) {
+  const s = syncStore.get().loggedIn ? need() : null
+  if (!s) return null
+  return account.putStatus(s, { away: false, status }).catch((e) => {
+    if (status) throw e
+    return null
+  })
 }
 
 export async function searchPeople(query: string) {

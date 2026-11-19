@@ -8,6 +8,8 @@ import { defaultProfileColor, inkOn } from '../core/profile-colors'
 import { handleAvailable, searchPeople, syncStore, type ShownProfile } from '../lib/sync'
 import { alpha, useColors, ui } from '../lib/theme'
 import { Button, Empty, ErrorText, Icon, Spinner, Txt } from './ui'
+import type { Status } from '../core/account'
+import { STATUS_COLOR, STATUS_LABEL } from '../lib/status'
 
 export const HANDLE_RULES = '3-20 letters, numbers, _ or . (no dot at the start or end)'
 
@@ -29,7 +31,48 @@ export const maskEmail = (email: string) => {
 }
 
 /** Profile photo, or (like Discord) the first letter of the name on the profile's own solid colour, or a person outline. */
-export function AccountAvatar({ profile, size = 32 }: { profile?: Pick<ShownProfile, 'avatar' | 'displayName' | 'handle'>; size?: number }) {
+/** A profile picture, with a Discord-style status dot in the corner when `status` is given (`ring`: the colour behind it). */
+export function AccountAvatar({
+  profile,
+  size = 32,
+  status,
+  ring,
+}: {
+  profile?: Pick<ShownProfile, 'avatar' | 'displayName' | 'handle'>
+  size?: number
+  status?: Status | null
+  ring?: string
+}) {
+  if (!status) return <AvatarPicture profile={profile} size={size} />
+  return (
+    <View style={{ width: size, height: size }}>
+      <AvatarPicture profile={profile} size={size} />
+      <StatusDot status={status} size={Math.max(12, Math.round(size * 0.3))} ring={ring} style={{ position: 'absolute', right: -2, bottom: -2 }} />
+    </View>
+  )
+}
+
+/** Online: green; idle: a yellow moon; do not disturb: red with a dash; offline: a grey ring. */
+export function StatusDot({ status, size, ring, style }: { status: Status; size: number; ring?: string; style?: object }) {
+  const c = useColors()
+  const bg = ring ?? c.bg
+  const border = Math.max(2, Math.round(size / 6))
+  const inner = size - border * 2
+  const color = STATUS_COLOR[status]
+  return (
+    <View accessibilityLabel={STATUS_LABEL[status]} style={[{ width: size, height: size, borderRadius: size / 2, borderWidth: border, borderColor: bg, backgroundColor: color, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }, style]}>
+      {status === 'idle' ? (
+        <View style={{ position: 'absolute', left: -inner * 0.12, top: -inner * 0.12, width: inner * 0.62, height: inner * 0.62, borderRadius: inner, backgroundColor: bg }} />
+      ) : status === 'dnd' ? (
+        <View style={{ width: inner * 0.6, height: Math.max(2, inner * 0.22), borderRadius: 2, backgroundColor: bg }} />
+      ) : status === 'offline' ? (
+        <View style={{ width: inner * 0.42, height: inner * 0.42, borderRadius: inner, backgroundColor: bg }} />
+      ) : null}
+    </View>
+  )
+}
+
+function AvatarPicture({ profile, size }: { profile?: Pick<ShownProfile, 'avatar' | 'displayName' | 'handle'>; size: number }) {
   const c = useColors()
   if (profile?.avatar) return <Image source={{ uri: profile.avatar }} style={{ width: size, height: size, borderRadius: size / 2 }} />
   const letter = (profile?.displayName || profile?.handle || '')[0]
@@ -48,7 +91,7 @@ export function AccountAvatar({ profile, size = 32 }: { profile?: Pick<ShownProf
  * A profile like Discord's: banner (picture, else a solid colour), photo overlapping it, then the
  * name panel. Two profile colours run down the whole card.
  */
-export function ProfileCard({ profile: p, actions }: { profile: ShownProfile; actions?: ReactNode }) {
+export function ProfileCard({ profile: p, actions, status }: { profile: ShownProfile; actions?: ReactNode; status?: Status | null }) {
   const c = useColors()
   const themed = !!p.colors
   const bannerColor = p.colors?.[0] ?? defaultProfileColor(p.handle || p.displayName)
@@ -61,7 +104,7 @@ export function ProfileCard({ profile: p, actions }: { profile: ShownProfile; ac
       )}
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: 14, marginTop: -46 }}>
         <View style={{ padding: 5, borderRadius: 50, backgroundColor: themed ? alpha(p.colors![0], 0.55) : c.bg2 }}>
-          <AccountAvatar profile={p} size={82} />
+          <AccountAvatar profile={p} size={82} status={status} ring={themed ? undefined : c.bg2} />
         </View>
         {actions ? <View style={{ flexDirection: 'row', gap: 8, paddingBottom: 4 }}>{actions}</View> : null}
       </View>

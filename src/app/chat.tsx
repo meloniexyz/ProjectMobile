@@ -6,7 +6,8 @@ import type { ChatMessage } from '../core/account'
 import { useStore } from '../core/store'
 import { SongCard } from '../components/SongCard'
 import { ErrorText, Header, Icon, IconButton, Spinner, Txt } from '../components/ui'
-import { chatStore, refreshUnread } from '../lib/chats'
+import { chatStore, refreshUnread, toggleMute } from '../lib/chats'
+import { useSettings } from '../lib/settings'
 import { chat, sendMessage } from '../lib/sync'
 import { useColors, ui } from '../lib/theme'
 import { toast } from '../lib/ui'
@@ -31,6 +32,15 @@ export default function ChatScreen() {
   const [error, setError] = useState<string | null>(null)
   const scroll = useRef<ScrollView>(null)
   const last = useRef(0)
+  const muted = useSettings().mutedChats?.includes(handle) ?? false
+
+  // no buzz or banner for the chat that's on screen
+  useEffect(() => {
+    chatStore.set({ open: handle })
+    return () => {
+      if (chatStore.get().open === handle) chatStore.set({ open: null })
+    }
+  }, [handle])
 
   useEffect(() => {
     let live = true
@@ -89,7 +99,24 @@ export default function ChatScreen() {
 
   return (
     <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: c.bg }}>
-      <Header title={`@${handle}`} right={<IconButton name="person-circle-outline" size={26} label="Open their profile" onPress={() => router.push({ pathname: '/person', params: { handle } })} />} />
+      <Header
+        title={`@${handle}`}
+        right={
+          <View style={{ flexDirection: 'row', gap: 4 }}>
+            <IconButton
+              name={muted ? 'notifications-off-outline' : 'notifications-outline'}
+              size={24}
+              color={muted ? c.accent : undefined}
+              label={muted ? 'Unmute this chat' : 'Mute this chat (no buzz or banner)'}
+              onPress={() => {
+                toggleMute(handle)
+                toast(muted ? 'Chat unmuted' : 'Chat muted: no buzz or banner, it still counts as unread')
+              }}
+            />
+            <IconButton name="person-circle-outline" size={26} label="Open their profile" onPress={() => router.push({ pathname: '/person', params: { handle } })} />
+          </View>
+        }
+      />
       <ScrollView ref={scroll} onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: false })} contentContainerStyle={{ padding: ui.pad, gap: 10 }}>
         {more ? (
           <Pressable onPress={() => void older()} style={{ alignSelf: 'center', padding: 8 }}>
@@ -104,8 +131,12 @@ export default function ChatScreen() {
             Say hi, or share a song.
           </Txt>
         ) : null}
-        {messages?.map((m) => (
-          <View key={m.id} style={{ alignSelf: m.mine ? 'flex-end' : 'flex-start', alignItems: m.mine ? 'flex-end' : 'flex-start', maxWidth: '80%', gap: 4 }}>
+        {messages?.map((m, i) => {
+          // like WhatsApp: messages from the same person in the same minute share one time, under the last
+          const same = (a?: ChatMessage, b?: ChatMessage) => !!a && !!b && a.mine === b.mine && Math.floor(a.at / 60_000) === Math.floor(b.at / 60_000)
+          const showTime = !same(m, messages[i + 1])
+          return (
+          <View key={m.id} style={{ alignSelf: m.mine ? 'flex-end' : 'flex-start', alignItems: m.mine ? 'flex-end' : 'flex-start', maxWidth: '80%', gap: 4, marginTop: same(messages[i - 1], m) ? -6 : 0 }}>
             {m.track ? <SongCard song={m.track} /> : null}
             {m.text ? (
               <View style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 18, backgroundColor: m.mine ? c.accent : c.bg3 }}>
@@ -114,12 +145,15 @@ export default function ChatScreen() {
                 </Txt>
               </View>
             ) : null}
-            <Txt size={11} tone="text3">
-              {time(m.at)}
-              {m.mine && m.read ? ' · Seen' : ''}
-            </Txt>
+            {showTime ? (
+              <Txt size={11} tone="text3">
+                {time(m.at)}
+                {m.mine && m.read ? ' · Seen' : ''}
+              </Txt>
+            ) : null}
           </View>
-        ))}
+          )
+        })}
       </ScrollView>
       {isFriend ? (
         <View style={{ paddingHorizontal: ui.pad, paddingTop: 8, paddingBottom: insets.bottom + 8, gap: 8, borderTopWidth: 1, borderTopColor: c.line, backgroundColor: c.bg }}>

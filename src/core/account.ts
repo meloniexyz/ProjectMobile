@@ -329,10 +329,17 @@ export interface Listening {
   at: number
 }
 
+/** How someone shows to their friends, like Discord: picked by them, or offline when no app of theirs is open. */
+export type Status = 'online' | 'idle' | 'dnd' | 'offline'
+/** What you can pick for yourself ('invisible' shows you offline). */
+export type PickedStatus = 'online' | 'idle' | 'dnd' | 'invisible'
+
 export interface Friend {
   user: PublicProfile
   since: number
   listening: Listening | null
+  /** missing from servers without statuses */
+  status?: Status
 }
 
 export interface FriendsList {
@@ -430,6 +437,7 @@ export interface ChatSummary {
   user: PublicProfile
   last: ChatMessage
   unread: number
+  status?: Status
 }
 
 /** Your conversations, newest first, and how many messages you haven't read. */
@@ -456,11 +464,17 @@ export const removeFriend = async (s: AccountSession, handle: string) =>
 /** What you're listening to now (null when nothing), for your friends. */
 export const setListening = (s: AccountSession, track: Listening['track'] | null, playing: boolean) =>
   call<{ ok: true }>('PUT', '/v1/presence', { track, playing }, s.token)
+/**
+ * An open app checking in (every minute): keeps you online, says whether you're away from it,
+ * and changes your status when `status` is given. Returns the status you picked (same on every device).
+ */
+export const putStatus = (s: AccountSession, body: { status?: PickedStatus; away: boolean }) =>
+  call<{ status: PickedStatus; shown: Status }>('PUT', '/v1/status', body, s.token)
 export const socialSettings = (s: AccountSession) => call<SocialSettings>('GET', '/v1/social', undefined, s.token)
 export const setSocialSettings = (s: AccountSession, patch: Partial<SocialSettings>) => call<SocialSettings>('PATCH', '/v1/social', patch, s.token)
 /** Your relation to someone, whether you may see their playlists, and (friends) what they're listening to. */
 export const userSocial = (s: AccountSession, handle: string) =>
-  call<{ relation: Relation; playlistsVisible: boolean; listening: Listening | null }>('GET', `/v1/users/${encodeURIComponent(handle)}/social`, undefined, s.token)
+  call<{ relation: Relation; playlistsVisible: boolean; listening: Listening | null; status?: Status | null }>('GET', `/v1/users/${encodeURIComponent(handle)}/social`, undefined, s.token)
 /** Someone's public playlists (when they share them with you). */
 export const userPlaylists = async (s: AccountSession, handle: string) =>
   (await call<{ playlists: Playlist[] }>('GET', `/v1/users/${encodeURIComponent(handle)}/playlists`, undefined, s.token)).playlists

@@ -11,7 +11,8 @@ import { useLogo } from '../lib/logo'
 import { SOURCES } from '../lib/sources'
 import { syncStore } from '../lib/sync'
 import { useColors, ui } from '../lib/theme'
-import { AccountAvatar, shownName } from './Profile'
+import { AccountAvatar, shownName, StatusDot } from './Profile'
+import { openStatusPicker, shownMine, STATUS_LABEL, useMyStatus } from '../lib/status'
 import { Image } from 'expo-image'
 import { Artwork, Icon, Txt, type IconName } from './ui'
 
@@ -94,6 +95,7 @@ export function SidePanel() {
   const insets = useSafeAreaInsets()
   const open = useStore(sidePanelStore, (s) => s.open)
   const st = useStore(syncStore, (s) => s)
+  const myStatus = useMyStatus()
   const playlists = useStore(libStore, (s) => s.playlists)
   const accounts = useStore(accountStore, (s) => s.accounts)
   const unread = useStore(chatStore, (s) => s.unread)
@@ -139,7 +141,7 @@ export function SidePanel() {
           onPress={() => go(st.loggedIn ? '/settings/account' : '/settings/account')}
           style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: c.line }}
         >
-          {st.loggedIn && st.profile ? <AccountAvatar profile={st.profile} size={46} /> : <Image source={logo} style={{ width: 46, height: 46 }} />}
+          {st.loggedIn && st.profile ? <AccountAvatar profile={st.profile} size={46} status={shownMine(myStatus)} ring={c.bg2} /> : <Image source={logo} style={{ width: 46, height: 46 }} />}
           <View style={{ flex: 1 }}>
             <Txt size={18} weight="800" lines={1}>
               {st.loggedIn ? shownName(st.profile) : 'Negusify'}
@@ -149,6 +151,20 @@ export function SidePanel() {
             </Txt>
           </View>
         </Pressable>
+        {st.loggedIn && myStatus ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Status: ${STATUS_LABEL[myStatus]}. Change`}
+            onPress={openStatusPicker}
+            style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.line, backgroundColor: pressed ? c.bg3 : undefined })}
+          >
+            <StatusDot status={shownMine(myStatus)!} size={12} ring={c.bg2} />
+            <Txt size={15} weight="600" style={{ flex: 1 }}>
+              {STATUS_LABEL[myStatus]}
+            </Txt>
+            <Icon name="chevron-forward" size={16} color={c.text3} />
+          </Pressable>
+        ) : null}
         <ScrollView contentContainerStyle={{ paddingVertical: 8, paddingBottom: insets.bottom + 24 }}>
           <Item icon="home-outline" title="Home" onPress={() => tab('/')} />
           <Item icon="search-outline" title="Search" onPress={() => tab('/search')} />

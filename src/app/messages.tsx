@@ -4,16 +4,20 @@ import { Pressable, ScrollView, View } from 'react-native'
 import { useStore } from '../core/store'
 import { AccountAvatar, shownName } from '../components/Profile'
 import { SongCard } from '../components/SongCard'
-import { Empty, ErrorText, Header, Spinner, Txt } from '../components/ui'
-import { chatStore } from '../lib/chats'
+import { Empty, ErrorText, Header, Icon, Spinner, Txt } from '../components/ui'
+import { chatStore, isMuted } from '../lib/chats'
+import { useSettings } from '../lib/settings'
 import { chats as loadChats, friendsList, syncStore, type ShownProfile } from '../lib/sync'
 import { useColors, ui } from '../lib/theme'
+import { noteStatuses, statusStore } from '../lib/status'
 
 /** Messages: your conversations with friends (newest first), then friends you haven't messaged yet. */
 export default function MessagesScreen() {
   const c = useColors()
   const loggedIn = useStore(syncStore, (s) => s.loggedIn)
   const pending = useStore(chatStore, (s) => s.pending)
+  useSettings() // re-render when a chat is muted or unmuted
+  const statuses = useStore(statusStore, (s) => s.friends)
   const [data, setData] = useState<Awaited<ReturnType<typeof loadChats>> | null>(null)
   const [friends, setFriends] = useState<ShownProfile[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -25,12 +29,16 @@ export default function MessagesScreen() {
         (r) => {
           setData(r)
           setError(null)
+          noteStatuses(r.chats.map((x) => ({ handle: x.user.handle, status: x.status })))
           chatStore.set({ unread: r.unread })
         },
         (e) => setError(String((e as Error)?.message ?? e)),
       )
     void load()
-    friendsList().then(setFriends, () => {})
+    friendsList().then((f) => {
+      setFriends(f)
+      noteStatuses(f)
+    }, () => {})
     const t = setInterval(() => void load(), 10_000)
     return () => clearInterval(t)
   }, [loggedIn])
@@ -47,7 +55,7 @@ export default function MessagesScreen() {
       onPress={() => open(u.handle!)}
       style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: ui.pad, paddingVertical: 10, backgroundColor: pressed ? c.bg3 : undefined })}
     >
-      <AccountAvatar profile={u} size={46} />
+      <AccountAvatar profile={u} size={46} status={u.handle ? statuses[u.handle] : undefined} />
       <View style={{ flex: 1 }}>
         <Txt size={16} weight="700" lines={1}>
           {shownName(u)}
@@ -56,8 +64,9 @@ export default function MessagesScreen() {
           {sub}
         </Txt>
       </View>
+      {u.handle && isMuted(u.handle) ? <Icon name="notifications-off-outline" size={16} color={c.text3} /> : null}
       {unread ? (
-        <View style={{ minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 6, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 6, backgroundColor: u.handle && isMuted(u.handle) ? c.bg4 : c.accent, alignItems: 'center', justifyContent: 'center' }}>
           <Txt size={12} weight="800" style={{ color: c.accentInk }}>
             {unread}
           </Txt>

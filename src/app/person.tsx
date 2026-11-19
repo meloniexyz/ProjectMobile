@@ -5,12 +5,14 @@ import { ProfileCard } from '../components/Profile'
 import { Button, Empty, Header, Spinner } from '../components/ui'
 import { person, type ShownProfile } from '../lib/sync'
 import { useColors } from '../lib/theme'
+import { useFriendStatus } from '../lib/status'
 import { ProfileRanks } from './leaderboard'
 
 /** Someone's profile, from Search → Negusify. */
 export default function PersonScreen() {
   const c = useColors()
   const { handle } = useLocalSearchParams<{ handle: string }>()
+  const status = useFriendStatus(handle)
   const [p, setP] = useState<ShownProfile | null>(null)
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
@@ -25,6 +27,7 @@ export default function PersonScreen() {
           <>
             <ProfileCard
               profile={p}
+              status={status}
               actions={<Button small title="Message" icon="chatbubble-outline" kind="secondary" onPress={() => router.push({ pathname: '/chat', params: { handle } })} />}
             />
             <ProfileRanks handle={handle} />

@@ -54,6 +54,8 @@ export interface MobileSettings {
   /** logo style (app icon and in-app logo), in the accent colour: see lib/logo.ts */
   logo: string
   showLyrics: boolean
+  /** chats (friends' @usernames) that don't buzz or show a banner (they still count on the badge) */
+  mutedChats: string[]
   /** hide local audio under 30 s (samples, voice memos) */
   hideShortClips: boolean
   /** 'glass' = native iOS look: Apple's real Liquid Glass on the tab bar, playing bar, sheets, buttons and player */
@@ -91,6 +93,7 @@ export const DEFAULT_MOBILE_SETTINGS: MobileSettings = {
   newReleasesMaxMinutes: 8,
   logo: 'mark-onsurface',
   showLyrics: true,
+  mutedChats: [],
   hideShortClips: true,
   uiStyle: 'glass',
   spotifySource: 'auto',
