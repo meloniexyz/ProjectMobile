@@ -114,6 +114,9 @@ appId: com.negusify.app
 - scrollUntilVisible:
     element: "Themes"
     direction: UP
+    # centred: at the top edge the row sits under the glass header and the tap misses
+    centerElement: true
+- waitForAnimationToEnd
 - tapOn: "Themes"
 - tapOn:
     id: "ui-glass"
