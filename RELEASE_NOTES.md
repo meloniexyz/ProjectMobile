@@ -1,4 +1,6 @@
-**Install:** download `Negusify-0.1.14.ipa` and install it with [Sideloadly](https://sideloadly.io) using your Apple ID (with a free Apple ID, reinstall every 7 days).
+**Install:** download `Negusify-0.1.15.ipa` and install it with [Sideloadly](https://sideloadly.io) using your Apple ID (with a free Apple ID, reinstall every 7 days).
+
+Negusify for iPhone 0.1.15: same as 0.1.13 on iPhone (this release fixes Spotify playing inside the Windows app); keeps the iPhone app on the same version as the desktop app.
 
 Negusify for iPhone 0.1.14: same as 0.1.13 on iPhone (this release is the desktop app playing Spotify songs inside Negusify); keeps the iPhone app on the same version as the desktop app.
 
