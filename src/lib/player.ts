@@ -5,6 +5,7 @@ import { shuffled } from '../core/format'
 import { NativeAudio, type NativeTrack } from '../../modules/negusify-audio'
 import { atLeast, ensureOnPhone, lookup, setGain, touch, trimCache, fileUri } from './audioCache'
 import { eqFilters } from './eq'
+import { fxOf, newTrack } from './effects'
 import { flushListening, trackListening } from './history'
 import { localUriFor } from './library'
 import { canStream, onWifi, streamQuality } from './net'
@@ -232,6 +233,7 @@ async function load(autoplay: boolean) {
     return
   }
   loadedKey = item.key
+  fxSongChanged(item.track.uid)
   const startAt = item.key === resumeKey ? resumeAt : 0
   resumeAt = 0
   resumeKey = null
@@ -339,6 +341,7 @@ export function startPlayer() {
     const idx = state.queue.findIndex((q) => q.key === key)
     if (idx < 0) return
     loadedKey = key
+    fxSongChanged(state.queue[idx].track.uid)
     const meta = prepared.get(id)
     emit({ index: idx, activeKey: key, position: 0, duration: state.queue[idx].track.duration, loading: false, error: null, quality: meta?.quality ?? null, via: meta?.via ?? null }, true)
     const t = state.queue[idx].track
@@ -369,10 +372,12 @@ export function startPlayer() {
   })
 
   applyAudioSettings()
+  applyFx()
   let last = getSettings()
   settingsStore.subscribe(() => {
     const cur = getSettings()
     if (cur.eq !== last.eq || cur.normalize !== last.normalize || cur.loudnessLevel !== last.loudnessLevel) applyAudioSettings()
+    if (cur.fx !== last.fx) applyFx()
     if (cur.offlineMode !== last.offlineMode) void prefetch()
     last = cur
   })
@@ -389,6 +394,25 @@ export function startPlayer() {
       save()
     }
   }, 10_000)
+}
+
+/** the song speed and pitch last applied to (a new one resets them unless "Keep across tracks") */
+let fxSongUid: string | null = null
+function fxSongChanged(uid: string) {
+  if (uid === fxSongUid) return
+  if (fxSongUid !== null) newTrack()
+  fxSongUid = uid
+}
+
+let fxTimer: ReturnType<typeof setTimeout> | null = null
+/** The Speed panel's settings to the native player (batched: dragging a ruler sends many). */
+function applyFx() {
+  if (fxTimer) clearTimeout(fxTimer)
+  fxTimer = setTimeout(() => {
+    fxTimer = null
+    const fx = fxOf()
+    void nat(() => NativeAudio.setEffects(fx.rate, fx.linked, fx.pitch, fx.reverb, fx.reverbLevel))
+  }, 40)
 }
 
 let audioTimer: ReturnType<typeof setTimeout> | null = null

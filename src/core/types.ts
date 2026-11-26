@@ -118,8 +118,8 @@ export interface Lyrics {
   /** which release it's from, e.g. the album name */
   label?: string
   instrumental: boolean
-  /** time-synced lines (seconds), when available */
-  synced: { time: number; text: string }[] | null
+  /** time-synced lines (seconds), when available; `words`: per-word times, when the lyrics have them */
+  synced: { time: number; text: string; words?: { time: number; text: string }[] }[] | null
   plain: string | null
 }
 

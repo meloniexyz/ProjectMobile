@@ -138,6 +138,7 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="player" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
             <Stack.Screen name="queue" options={{ presentation: 'modal' }} />
+            <Stack.Screen name="lyrics" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
             <Stack.Screen name="spotify-login" options={{ presentation: 'modal' }} />
             <Stack.Screen name="mode" options={{ presentation: 'fullScreenModal', gestureEnabled: false }} />
           </Stack>

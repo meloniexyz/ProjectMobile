@@ -17,6 +17,8 @@ import { useGlass } from '../lib/glass'
 import { artworkUri } from '../lib/jellyfin'
 import { useColors, ui } from '../lib/theme'
 import { openSaveSheet, openTrackSheet } from '../lib/ui'
+import { SpeedSheet } from '../components/SpeedSheet'
+import { fxActive, fxOf } from '../lib/effects'
 
 export default function PlayerScreen() {
   const closePlayer = useGoBack()
@@ -37,6 +39,8 @@ export default function PlayerScreen() {
   const via = usePlayer((s) => s.via)
   const error = usePlayer((s) => s.error)
   const [preview, setPreview] = useState<number | null>(null)
+  // the Speed panel (speed, pitch, reverb), from the Speed chip
+  const [speedOpen, setSpeedOpen] = useState(false)
   // height of the scroll area: the player fills it, lyrics and song info come below
   const [viewport, setViewport] = useState(0)
 
@@ -51,7 +55,9 @@ export default function PlayerScreen() {
 
   const art = Math.min(width - ui.pad * 2, 420)
   const shown = preview ?? position
-  const backdrop = glass ? artworkUri(track.artwork) : null
+  // the FruitGlass theme tints the player with its cover too (calmer than Liquid Glass's, for reading)
+  const fruit = c.skin === 'fruitglass'
+  const backdrop = glass || fruit ? artworkUri(track.artwork) : null
   const chip = { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, flexDirection: 'row', gap: 4, alignItems: 'center' } as const
   const playToggle = (
     <Pressable
@@ -74,11 +80,11 @@ export default function PlayerScreen() {
       {backdrop ? (
         <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
           <Image source={{ uri: backdrop }} style={{ flex: 1 }} contentFit="cover" blurRadius={70} cachePolicy="disk" transition={300} />
-          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.42)' }} />
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: glass ? 'rgba(0,0,0,0.42)' : 'rgba(0,0,0,0.6)' }} />
         </View>
       ) : null}
       {/* top bar stays put while the lyrics scroll */}
-      <Swipeable onDown={closePlayer} follow="none" style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: glass ? 14 : 8, paddingTop: insets.top + 4, paddingBottom: 6, backgroundColor: glass ? 'transparent' : c.bg }}>
+      <Swipeable onDown={closePlayer} follow="none" style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: glass ? 14 : 8, paddingTop: insets.top + 4, paddingBottom: 6, backgroundColor: glass || fruit ? 'transparent' : c.bg }}>
         <IconButton name="chevron-down" size={glass ? 24 : 28} label="Close player" onPress={closePlayer} glass />
         <View style={{ flex: 1, alignItems: 'center' }}>
           <Txt tone="text2" size={11} weight="700">
@@ -198,13 +204,47 @@ export default function PlayerScreen() {
                 </Txt>
               </Pressable>
             </GlassView>
+          ) : null}
+          {glass ? (
+            <GlassView isInteractive glassEffectStyle="regular" colorScheme="dark" style={{ borderRadius: 999 }}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Equalizer" onPress={() => router.push('/settings/eq')} style={chip}>
+                <Icon name="options-outline" size={14} color={settings.eq.enabled ? c.accent : c.text} />
+                <Txt size={12} weight="600">
+                  EQ
+                </Txt>
+              </Pressable>
+            </GlassView>
+          ) : null}
+          {glass ? (
+            <GlassView isInteractive glassEffectStyle="regular" colorScheme="dark" style={{ borderRadius: 999 }}>
+              <Pressable testID="speed-chip" accessibilityRole="button" accessibilityLabel="Speed, pitch and reverb" onPress={() => setSpeedOpen(true)} style={chip}>
+                <Icon name="speedometer-outline" size={14} color={fxActive(fxOf()) ? c.accent : c.text} />
+                <Txt size={12} weight="600">
+                  {fxSpeedLabel()}
+                </Txt>
+              </Pressable>
+            </GlassView>
           ) : (
-            <Pressable accessibilityRole="button" accessibilityLabel="Open queue" onPress={() => router.push('/queue')} style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: c.bg3, flexDirection: 'row', gap: 4, alignItems: 'center' }}>
-              <Icon name="list" size={14} color={c.text2} />
-              <Txt tone="text2" size={12} weight="600">
-                Queue
-              </Txt>
-            </Pressable>
+            <>
+              <Pressable accessibilityRole="button" accessibilityLabel="Open queue" onPress={() => router.push('/queue')} style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: c.bg3, flexDirection: 'row', gap: 4, alignItems: 'center' }}>
+                <Icon name="list" size={14} color={c.text2} />
+                <Txt tone="text2" size={12} weight="600">
+                  Queue
+                </Txt>
+              </Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel="Equalizer" onPress={() => router.push('/settings/eq')} style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: c.bg3, flexDirection: 'row', gap: 4, alignItems: 'center' }}>
+                <Icon name="options-outline" size={14} color={settings.eq.enabled ? c.accent : c.text2} />
+                <Txt tone="text2" size={12} weight="600">
+                  EQ
+                </Txt>
+              </Pressable>
+              <Pressable testID="speed-chip" accessibilityRole="button" accessibilityLabel="Speed, pitch and reverb" onPress={() => setSpeedOpen(true)} style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: c.bg3, flexDirection: 'row', gap: 4, alignItems: 'center' }}>
+                <Icon name="speedometer-outline" size={14} color={fxActive(fxOf()) ? c.accent : c.text2} />
+                <Txt tone="text2" size={12} weight="600">
+                  {fxSpeedLabel()}
+                </Txt>
+              </Pressable>
+            </>
           )}
         </View>
         {error ? (
@@ -220,6 +260,13 @@ export default function PlayerScreen() {
         <SongInfoCard track={track} />
       </ScrollView>
       <SheetHost />
+      <SpeedSheet open={speedOpen} onClose={() => setSpeedOpen(false)} />
     </View>
   )
+}
+
+/** The Speed chip's label: "Speed", or the speed when it isn't normal. */
+function fxSpeedLabel() {
+  const fx = fxOf()
+  return Math.abs(fx.rate - 1) > 0.001 ? `x${fx.rate.toFixed(2)}` : 'Speed'
 }

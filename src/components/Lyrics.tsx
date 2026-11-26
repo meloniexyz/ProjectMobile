@@ -9,7 +9,8 @@ import { canStream } from '../lib/net'
 import { seek, usePlayer } from '../lib/player'
 import { JsonFile } from '../lib/storage'
 import { useColors, ui } from '../lib/theme'
-import { Chip, Txt } from './ui'
+import { Chip, Icon, Txt } from './ui'
+import { router } from 'expo-router'
 
 /** Per song: which lyrics version you picked and how much you nudged the timing. */
 const prefs = new JsonFile<Record<string, { id?: number; offset?: number }>>('lyrics-prefs.json', {})
@@ -45,21 +46,18 @@ function useLyrics(track: Track) {
   return options
 }
 
-export function LyricsCard({ track }: { track: Track }) {
-  const c = useColors()
+/**
+ * The lyrics shown for a song (the card and the full lyrics screen share this): every version
+ * found, the one picked (or the one timed closest to the recording playing), and the timing nudge.
+ */
+export function useChosenLyrics(track: Track) {
   const options = useLyrics(track)
   const duration = usePlayer((s) => s.duration)
-  const position = usePlayer((s) => s.position)
   const [choice, setChoice] = useState<number | undefined>(() => prefs.get()[track.uid]?.id)
   const [offset, setOffset] = useState(() => prefs.get()[track.uid]?.offset ?? 0)
-  const scroll = useRef<ScrollView>(null)
-  const lineY = useRef<Record<number, number>>({})
-  const boxH = useRef(300)
-
   useEffect(() => {
     setChoice(prefs.get()[track.uid]?.id)
     setOffset(prefs.get()[track.uid]?.offset ?? 0)
-    lineY.current = {}
   }, [track.uid])
 
   // the version timed to the recording that's playing: closest length, unless you picked one
@@ -70,6 +68,29 @@ export function LyricsCard({ track }: { track: Track }) {
     const len = duration || track.duration
     return [...options].sort((a, b) => Number(!!b.synced) - Number(!!a.synced) || Math.abs((a.duration ?? len) - len) - Math.abs((b.duration ?? len) - len))[0]
   }, [options, choice, duration, track.duration])
+  const setPref = (patch: { id?: number; offset?: number }) => prefs.set({ ...prefs.get(), [track.uid]: { ...prefs.get()[track.uid], ...patch } })
+  const nudge = (d: number) => {
+    const next = Math.round((offset + d) * 10) / 10
+    setOffset(next)
+    setPref({ offset: next })
+  }
+  const pick = (id: number | undefined) => {
+    setChoice(id)
+    setPref({ id })
+  }
+  return { options, lyrics, offset, nudge, pick }
+}
+
+export function LyricsCard({ track }: { track: Track }) {
+  const c = useColors()
+  const { options, lyrics, offset, nudge, pick } = useChosenLyrics(track)
+  const position = usePlayer((s) => s.position)
+  const scroll = useRef<ScrollView>(null)
+  const lineY = useRef<Record<number, number>>({})
+  const boxH = useRef(300)
+  useEffect(() => {
+    lineY.current = {}
+  }, [track.uid])
 
   const lines = lyrics?.synced ?? null
   const at = position + offset
@@ -84,19 +105,16 @@ export function LyricsCard({ track }: { track: Track }) {
     scroll.current?.scrollTo({ y: Math.max(0, y - boxH.current / 2 + 20), animated: true })
   }, [current])
 
-  const setPref = (patch: { id?: number; offset?: number }) => prefs.set({ ...prefs.get(), [track.uid]: { ...prefs.get()[track.uid], ...patch } })
-  const nudge = (d: number) => {
-    const next = Math.round((offset + d) * 10) / 10
-    setOffset(next)
-    setPref({ offset: next })
-  }
-
   return (
     <View style={{ marginHorizontal: ui.pad, borderRadius: 10, backgroundColor: c.accentSoft, padding: 14, gap: 10 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <Txt size={16} weight="800" style={{ flex: 1 }}>
-          Lyrics
-        </Txt>
+        {/* the title (and the expand button) open the full lyrics screen */}
+        <Pressable accessibilityRole="button" accessibilityLabel="Open full lyrics" onPress={() => router.push('/lyrics')} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Txt size={16} weight="800">
+            Lyrics
+          </Txt>
+          {lines ? <Icon name="expand-outline" size={15} color={c.text2} /> : null}
+        </Pressable>
         {lines ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Chip label="−0.5s" onPress={() => nudge(-0.5)} />
@@ -142,10 +160,7 @@ export function LyricsCard({ track }: { track: Track }) {
               key={o.id ?? i}
               label={`${o.label ?? `Version ${i + 1}`}${o.duration ? ` · ${Math.floor(o.duration / 60)}:${String(Math.round(o.duration % 60)).padStart(2, '0')}` : ''}`}
               active={lyrics?.id === o.id}
-              onPress={() => {
-                setChoice(o.id)
-                setPref({ id: o.id })
-              }}
+              onPress={() => pick(o.id)}
             />
           ))}
         </View>

@@ -26,6 +26,9 @@ final class PMPlayer {
   private let emit: Emit
   private let player = AVQueuePlayer()
   private let params = DspParams()
+  /// the Speed panel's speed, and whether the key stays (true) or pitch follows speed like a record
+  private var rate: Float = 1
+  private var keepKey = false
   /// what each queued item is
   private var infos: [ObjectIdentifier: TrackInfo] = [:]
   private var currentId: String?
@@ -177,7 +180,9 @@ final class PMPlayer {
     ])
     if var np = MPNowPlayingInfoCenter.default().nowPlayingInfo, info != nil {
       np[MPNowPlayingInfoPropertyElapsedPlaybackTime] = pos.isFinite ? pos : 0
-      np[MPNowPlayingInfoPropertyPlaybackRate] = playing ? 1.0 : 0.0
+      // the lock screen's progress moves at the song's speed
+      np[MPNowPlayingInfoPropertyPlaybackRate] = playing ? Double(rate) : 0.0
+      np[MPNowPlayingInfoPropertyDefaultPlaybackRate] = Double(rate)
       np[MPMediaItemPropertyPlaybackDuration] = dur
       MPNowPlayingInfoCenter.default().nowPlayingInfo = np
       MPNowPlayingInfoCenter.default().playbackState = playing ? .playing : .paused
@@ -196,6 +201,7 @@ final class PMPlayer {
       throw NSError(domain: "NegusifyAudio", code: 2, userInfo: [NSLocalizedDescriptionKey: "No audio in this file"])
     }
     let item = AVPlayerItem(asset: asset)
+    item.audioTimePitchAlgorithm = keepKey ? .spectral : .varispeed
     let ctx = TapContext(params: params, trackGainDb: info.gainDb)
     item.audioMix = makeAudioMix(track: track, context: ctx)
     return item
@@ -293,6 +299,19 @@ final class PMPlayer {
 
   func setLevel(normalize: Bool, offsetDb: Double) {
     params.setLevel(normalize: normalize, offsetDb: offsetDb)
+  }
+
+  /// The Speed panel: speed (linked: pitch follows it, like a record; not linked: the key stays and
+  /// `pitch` semitones are shifted in the audio tap), and reverb.
+  func setEffects(rate r: Double, linked: Bool, pitch: Double, reverb: Bool, reverbLevel: Double) {
+    rate = Float(min(2, max(0.5, r)))
+    keepKey = !linked
+    for item in player.items() { item.audioTimePitchAlgorithm = keepKey ? .spectral : .varispeed }
+    // play() starts at defaultRate; a playing song changes speed right away
+    player.defaultRate = rate
+    if player.rate > 0 { player.rate = rate }
+    params.setEffects(pitch: linked ? 0 : pitch, reverbOn: reverb, reverbLevel: reverbLevel)
+    sendState()
   }
 
   /// Keeps the app alive with silent audio while the next song downloads (or stops it).
@@ -404,7 +423,8 @@ final class PMPlayer {
       MPMediaItemPropertyAlbumTitle: info.album,
       MPMediaItemPropertyPlaybackDuration: info.duration,
       MPNowPlayingInfoPropertyElapsedPlaybackTime: 0.0,
-      MPNowPlayingInfoPropertyPlaybackRate: wantsPlay ? 1.0 : 0.0,
+      MPNowPlayingInfoPropertyPlaybackRate: wantsPlay ? Double(rate) : 0.0,
+      MPNowPlayingInfoPropertyDefaultPlaybackRate: Double(rate),
       MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue,
     ]
     if let art = artwork, artworkKey == info.artwork { np[MPMediaItemPropertyArtwork] = art }

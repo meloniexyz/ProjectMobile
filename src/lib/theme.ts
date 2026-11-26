@@ -57,9 +57,9 @@ const INTER: Record<string, string> = {
   '800': 'Inter_800ExtraBold',
   '900': 'Inter_800ExtraBold',
 }
-/** Font for the theme's skin: the Feishin theme uses Inter (one font file per weight on iOS). */
+/** Font for the theme's skin: the Feishin and FruitGlass themes use Inter (one font file per weight on iOS). */
 export function fontFor(c: Colors, weight?: TextStyle['fontWeight']): TextStyle {
-  if (c.skin !== 'feishin') return { fontWeight: weight }
+  if (c.skin !== 'feishin' && c.skin !== 'fruitglass') return { fontWeight: weight }
   return { fontFamily: INTER[String(weight ?? '400')] ?? 'Inter_400Regular' }
 }
 

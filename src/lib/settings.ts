@@ -56,6 +56,8 @@ export interface MobileSettings {
   showLyrics: boolean
   /** chats (friends' @usernames) that don't buzz or show a banner (they still count on the badge) */
   mutedChats: string[]
+  /** Speed, pitch and reverb (the Speed panel, like the desktop app's) */
+  fx: FxSettings
   /** hide local audio under 30 s (samples, voice memos) */
   hideShortClips: boolean
   /** 'glass' = native iOS look: Apple's real Liquid Glass on the tab bar, playing bar, sheets, buttons and player */
@@ -94,6 +96,7 @@ export const DEFAULT_MOBILE_SETTINGS: MobileSettings = {
   logo: 'mark-onsurface',
   showLyrics: true,
   mutedChats: [],
+  fx: { rate: 1, pitch: 0, linked: true, keep: true, reverb: false, reverbLevel: 0.35 },
   hideShortClips: true,
   uiStyle: 'glass',
   spotifySource: 'auto',
@@ -133,6 +136,21 @@ export function initSettings() {
 }
 
 export const getSettings = () => settingsStore.get().settings
+
+/** The Speed panel: speed, pitch (semitones), linked like a record or key lock, carried to the next song, reverb. */
+export interface FxSettings {
+  /** 0.5 .. 2 */
+  rate: number
+  /** -12 .. +12 semitones */
+  pitch: number
+  /** on: speed changes pitch like vinyl or tape; off: speed keeps the key and pitch is shifted on its own */
+  linked: boolean
+  /** off: speed and pitch go back to normal for each new song */
+  keep: boolean
+  reverb: boolean
+  /** 0 .. 1 */
+  reverbLevel: number
+}
 export const useSettings = () => useStore(settingsStore, (s) => s.settings)
 
 export function updateSettings(patch: Partial<MobileSettings>) {

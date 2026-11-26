@@ -77,6 +77,11 @@ public final class NegusifyAudioModule: Module {
       await self.player().setLevel(normalize: normalize, offsetDb: offsetDb)
     }
 
+    // the Speed panel: speed, linked or key lock, pitch (semitones), reverb on and level
+    AsyncFunction("setEffects") { (rate: Double, linked: Bool, pitch: Double, reverb: Bool, reverbLevel: Double) async in
+      await self.player().setEffects(rate: rate, linked: linked, pitch: pitch, reverb: reverb, reverbLevel: reverbLevel)
+    }
+
     // Negusify accounts: password -> keys. CommonCrypto is ~50x faster than doing it in JavaScript.
     AsyncFunction("pbkdf2Sha256") { (password: String, salt: String, iterations: Int, length: Int) throws -> String in
       guard let pw = Data(base64Encoded: password), let saltData = Data(base64Encoded: salt) else {

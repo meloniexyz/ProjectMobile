@@ -1,4 +1,6 @@
-**Install:** download `Negusify-0.1.15.ipa` and install it with [Sideloadly](https://sideloadly.io) using your Apple ID (with a free Apple ID, reinstall every 7 days).
+**Install:** download `Negusify-0.1.16.ipa` and install it with [Sideloadly](https://sideloadly.io) using your Apple ID (with a free Apple ID, reinstall every 7 days).
+
+Negusify for iPhone 0.1.16: a Speed panel in the player (speed, pitch, link speed to pitch, keep across songs, reverb); a full lyrics screen (tap Lyrics in the player) with the cover flowing behind, words lighting up as they're sung and lines gliding like Liner's; the FruitGlass theme (Settings → Themes).
 
 Negusify for iPhone 0.1.15: same as 0.1.13 on iPhone (this release fixes Spotify playing inside the Windows app); keeps the iPhone app on the same version as the desktop app.
 

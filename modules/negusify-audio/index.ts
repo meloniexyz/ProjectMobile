@@ -46,6 +46,8 @@ export interface NegusifyAudioModule {
   stop(): Promise<void>
   setEq(filters: NativeFilter[], peakRiseDb: number): Promise<void>
   setLevel(normalize: boolean, offsetDb: number): Promise<void>
+  /** the Speed panel: speed, linked (pitch follows speed) or key lock, pitch in semitones (key lock only), reverb */
+  setEffects(rate: number, linked: boolean, pitch: number, reverb: boolean, reverbLevel: number): Promise<void>
   holdSilence(on: boolean): Promise<void>
   getState(): Promise<NativeState & { queued?: number }>
   measureLoudness(uri: string): Promise<number | null>
@@ -116,6 +118,11 @@ function webFallback(): NegusifyAudioModule {
     },
     async setEq() {},
     async setLevel() {},
+    async setEffects(rate: number, linked: boolean) {
+      if (!el) return
+      el.playbackRate = rate
+      el.preservesPitch = !linked
+    },
     async holdSilence() {},
     async getState() {
       return state()

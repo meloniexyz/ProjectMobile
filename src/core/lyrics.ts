@@ -42,12 +42,19 @@ function toLyrics(r: LrcRecord): Lyrics | null {
 
 /** Parses "[mm:ss.xx] line" LRC text into sorted { time, text } lines. */
 function parseLrc(lrc: string) {
-  const lines: { time: number; text: string }[] = []
+  const lines: { time: number; text: string; words?: { time: number; text: string }[] }[] = []
+  const secs = (m: string, s: string) => Number(m) * 60 + Number(s)
   for (const raw of lrc.split(/\r?\n/)) {
     const stamps = [...raw.matchAll(/\[(\d+):(\d+(?:\.\d+)?)\]/g)]
     if (!stamps.length) continue
-    const text = raw.replace(/\[[^\]]*\]/g, '').trim()
-    for (const s of stamps) lines.push({ time: Number(s[1]) * 60 + Number(s[2]), text })
+    const body = raw.replace(/\[[^\]]*\]/g, '')
+    // per-word times: each <mm:ss.xx> starts the words after it
+    const words: { time: number; text: string }[] = []
+    for (const m of body.matchAll(/<(\d+):(\d+(?:\.\d+)?)>([^<]*)/g)) {
+      for (const w of m[3].split(/\s+/).filter(Boolean)) words.push({ time: secs(m[1], m[2]), text: w })
+    }
+    const text = body.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
+    for (const s of stamps) lines.push({ time: secs(s[1], s[2]), text, ...(words.length ? { words } : {}) })
   }
   return lines.sort((a, b) => a.time - b.time)
 }
