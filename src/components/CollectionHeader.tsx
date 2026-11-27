@@ -7,7 +7,7 @@ import { cacheStore } from '../lib/audioCache'
 import { collectionProgress, downloadStore, setDownloaded, useCollection } from '../lib/downloads'
 import { playTracks } from '../lib/player'
 import { useColors, ui } from '../lib/theme'
-import { Artwork, Button, Icon, Txt } from './ui'
+import { Artwork, Button, Icon, IconButton, Txt } from './ui'
 
 /** Cover, title, Play / Shuffle and the Download switch for a playlist-like page. */
 export function CollectionHeader({
@@ -53,7 +53,7 @@ export function CollectionHeader({
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
             <Icon name={on && progress && progress.done === progress.total ? 'arrow-down-circle' : 'arrow-down-circle-outline'} size={24} color={on ? c.accent : c.text2} />
             <View style={{ flex: 1 }}>
-              <Txt size={13} weight="700">
+              <Txt size={13} weight="700" lines={1}>
                 Download
               </Txt>
               {on && progress ? (
@@ -77,7 +77,8 @@ export function CollectionHeader({
         ) : (
           <View style={{ flex: 1 }} />
         )}
-        <Button small kind="secondary" icon="shuffle" title="Shuffle" disabled={!tracks.length} onPress={() => playTracks(tracks, Math.floor(Math.random() * tracks.length), true)} />
+        {/* Shuffle as an icon (like Spotify), so "Download" fits on one line beside it */}
+        <IconButton name="shuffle" size={26} label="Shuffle" glass disabled={!tracks.length} onPress={() => playTracks(tracks, Math.floor(Math.random() * tracks.length), true)} />
         <Button small icon="play" title="Play" disabled={!tracks.length} onPress={() => playTracks(tracks, 0, false)} />
       </View>
       {extra}

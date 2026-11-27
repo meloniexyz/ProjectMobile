@@ -101,8 +101,9 @@ export function TrackRow({
         paddingLeft: ui.pad + (indent ? 16 : 0),
         paddingRight: ui.pad,
         paddingVertical: 7,
-        // solid, so the queue icon behind only shows while you swipe
-        backgroundColor: pressed ? c.hover : c.bg,
+        // the queue icon behind fades in only while you swipe, so the row can be see-through
+        // (FruitGlass shows its backdrop; other themes paint `page`, their solid background)
+        backgroundColor: pressed ? c.hover : c.page,
         opacity: available ? 1 : 0.38,
       })}
     >
@@ -266,7 +267,7 @@ function WorkHeader({ group: g, tracks }: { group: WorkGroup; tracks: Track[] })
         accessibilityLabel={`${g.title}, ${g.count} movements`}
         onLongPress={() => setSheet(true)}
         delayLongPress={380}
-        style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: ui.pad, paddingTop: 14, paddingBottom: 6, borderTopWidth: 1, borderTopColor: c.line, backgroundColor: pressed ? c.hover : c.bg })}
+        style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: ui.pad, paddingTop: 14, paddingBottom: 6, borderTopWidth: 1, borderTopColor: c.line, backgroundColor: pressed ? c.hover : c.page })}
       >
         <IconButton name="play-circle" size={28} color={c.text} label={`Play ${g.title}`} onPress={() => playTracks(tracks, g.start)} />
         <View style={{ flex: 1, minWidth: 0 }}>

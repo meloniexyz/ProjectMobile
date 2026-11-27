@@ -95,7 +95,7 @@ function SongRow({ tracks, index }: { tracks: Track[]; index: number }) {
       onPress={() => playTracks(tracks, index)}
       onLongPress={() => openTrackSheet(t)}
       unstable_pressDelay={70}
-      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: ui.pad, paddingVertical: 6, backgroundColor: pressed ? c.hover : c.bg })}
+      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: ui.pad, paddingVertical: 6, backgroundColor: pressed ? c.hover : c.page })}
     >
       <Txt tone="text3" size={13} style={{ width: 18, textAlign: 'right' }}>
         {index + 1}
