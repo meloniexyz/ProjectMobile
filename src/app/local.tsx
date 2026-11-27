@@ -21,7 +21,7 @@ export default function LocalFiles() {
     if (n) toast(`Added ${n} song${n === 1 ? '' : 's'}`)
   }
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <View style={{ flex: 1, backgroundColor: c.page }}>
       <Header title="Local files" right={<Button small title="Add songs" icon="add" onPress={add} />} />
       <TrackList
         tracks={sorted}

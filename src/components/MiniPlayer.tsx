@@ -1,7 +1,8 @@
 import { GlassView } from 'expo-glass-effect'
 import { glassSupported } from '../lib/glass'
 import { router } from 'expo-router'
-import { ActivityIndicator, Pressable, View } from 'react-native'
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
+import { Frosted } from './FruitBackdrop'
 import { next, prev, toggle, usePlayer } from '../lib/player'
 import { Swipeable } from './Swipe'
 import { useColors } from '../lib/theme'
@@ -81,10 +82,11 @@ export function MiniPlayer({ variant = 'bar', inline = false }: { variant?: 'bar
     )
   }
 
+  // FruitGlass: frosted, like the Windows app's player bar
   return (
-    <View style={{ marginHorizontal: 8, marginBottom: 6, borderRadius: variant === 'glass' ? 22 : 8, backgroundColor: c.elev, overflow: 'hidden' }}>
+    <Frosted solid={c.elev} tint={0.09} intensity={60} style={{ marginHorizontal: 8, marginBottom: 6, borderRadius: variant === 'glass' ? 22 : 10, overflow: 'hidden', borderWidth: c.skin === 'fruitglass' ? StyleSheet.hairlineWidth : 0, borderColor: 'rgba(255,255,255,0.10)' }}>
       {content}
       {progressLine}
-    </View>
+    </Frosted>
   )
 }

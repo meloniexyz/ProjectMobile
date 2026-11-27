@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { useEffect, useState } from 'react'
 import { ScrollView, View } from 'react-native'
 import { ProfileCard } from '../components/Profile'
+import { ProfileBackdrop } from '../components/FruitBackdrop'
 import { Button, Empty, Header, Spinner } from '../components/ui'
 import { person, type ShownProfile } from '../lib/sync'
 import { useColors } from '../lib/theme'
@@ -21,7 +22,9 @@ export default function PersonScreen() {
     person(handle).then(setP, (e) => setError(String((e as Error)?.message ?? e)))
   }, [handle])
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <View style={{ flex: 1, backgroundColor: c.page }}>
+      {/* FruitGlass: glows from their banner instead of the song */}
+      {p ? <ProfileBackdrop profile={p} /> : null}
       <Header title={`@${handle}`} />
       <ScrollView contentContainerStyle={{ paddingBottom: 160 }}>{error ? <Empty icon="person-outline" title={`@${handle}`} text={error} /> : p ? (
           <>

@@ -24,7 +24,7 @@ export default function RemotePlaylistScreen() {
     if (data) updateCollection(dlKey, data)
   }, [data, dlKey])
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <View style={{ flex: 1, backgroundColor: c.page }}>
       <Header title={meta?.name ?? name ?? 'Playlist'} />
       <TrackList
         tracks={tracks}

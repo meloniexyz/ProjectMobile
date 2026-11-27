@@ -2,7 +2,8 @@ import { chatStore } from '../lib/chats'
 import * as Haptics from 'expo-haptics'
 import { router, type Href } from 'expo-router'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Animated, Dimensions, PanResponder, Pressable, ScrollView, View } from 'react-native'
+import { Animated, Dimensions, PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import { BlurView } from 'expo-blur'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { createStore, useStore } from '../core/store'
 import { ACCOUNT_SOURCES, accountStore } from '../lib/accounts'
@@ -100,6 +101,7 @@ export function SidePanel() {
   const accounts = useStore(accountStore, (s) => s.accounts)
   const unread = useStore(chatStore, (s) => s.unread)
   const logo = useLogo()
+  const fruit = c.skin === 'fruitglass'
   const [width, setWidth] = useState(panelWidth())
   useEffect(() => {
     const sub = Dimensions.addEventListener('change', () => setWidth(panelWidth()))
@@ -134,38 +136,11 @@ export function SidePanel() {
       <Animated.View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#000', opacity: dim }}>
         <Pressable accessibilityLabel="Close side panel" style={{ flex: 1 }} onPress={closeSidePanel} />
       </Animated.View>
-      <Animated.View {...closeSwipe} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width, backgroundColor: c.bg2, transform: [{ translateX }], paddingTop: insets.top + 10 }}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Your profile"
-          onPress={() => go(st.loggedIn ? '/settings/account' : '/settings/account')}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: c.line }}
-        >
-          {st.loggedIn && st.profile ? <AccountAvatar profile={st.profile} size={46} status={shownMine(myStatus)} ring={c.bg2} /> : <Image source={logo} style={{ width: 46, height: 46 }} />}
-          <View style={{ flex: 1 }}>
-            <Txt size={18} weight="800" lines={1}>
-              {st.loggedIn ? shownName(st.profile) : 'Negusify'}
-            </Txt>
-            <Txt tone="text2" size={13} lines={1}>
-              {st.loggedIn ? (st.profile?.handle ? `@${st.profile.handle} · View profile` : 'View profile') : 'Log in or create an account'}
-            </Txt>
-          </View>
-        </Pressable>
-        {st.loggedIn && myStatus ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Status: ${STATUS_LABEL[myStatus]}. Change`}
-            onPress={openStatusPicker}
-            style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.line, backgroundColor: pressed ? c.bg3 : undefined })}
-          >
-            <StatusDot status={shownMine(myStatus)!} size={12} ring={c.bg2} />
-            <Txt size={15} weight="600" style={{ flex: 1 }}>
-              {STATUS_LABEL[myStatus]}
-            </Txt>
-            <Icon name="chevron-forward" size={16} color={c.text3} />
-          </Pressable>
-        ) : null}
-        <ScrollView contentContainerStyle={{ paddingVertical: 8, paddingBottom: insets.bottom + 24 }}>
+      <Animated.View {...closeSwipe} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width, backgroundColor: fruit ? 'rgba(10,10,10,0.55)' : c.bg2, transform: [{ translateX }], paddingTop: insets.top + 6 }}>
+        {/* FruitGlass: frosted glass, like the Windows app's sidebar */}
+        {fruit ? <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} /> : null}
+        {/* music, then social, then the app itself (like the Windows sidebar); your account sits at the bottom */}
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingVertical: 8, paddingBottom: 16 }}>
           <Item icon="home-outline" title="Home" onPress={() => tab('/')} />
           <Item icon="search-outline" title="Search" onPress={() => tab('/search')} />
           <Item icon="library-outline" title="Your Library" onPress={() => tab('/library')} />
@@ -174,14 +149,21 @@ export function SidePanel() {
               <Item icon="musical-notes-outline" title="Tracks" onPress={() => go('/jellyfin/tracks')} />
               <Item icon="disc-outline" title="Albums" onPress={() => go('/jellyfin/albums')} />
               <Item icon="mic-outline" title="Artists" onPress={() => go('/jellyfin/artists')} />
-              <Item icon="server-outline" title="Servers" onPress={() => go('/settings/servers')} />
             </>
           ) : null}
           <Item icon="arrow-down-circle-outline" title="Downloads" onPress={() => go('/downloads')} />
           <Item icon="folder-outline" title="Local files" onPress={() => go('/local')} />
           <Item icon="time-outline" title="History" onPress={() => go('/history')} />
-          {st.loggedIn ? <Item icon="trophy-outline" title="Leaderboards" onPress={() => go('/leaderboard')} /> : null}
-          {st.loggedIn ? <Item icon="chatbubbles-outline" title={unread ? `Messages (${unread})` : 'Messages'} onPress={() => go('/messages')} /> : null}
+          {st.loggedIn ? (
+            <>
+              <Heading>Social</Heading>
+              <Item icon="chatbubbles-outline" title={unread ? `Messages (${unread})` : 'Messages'} onPress={() => go('/messages')} />
+              <Item icon="trophy-outline" title="Leaderboards" onPress={() => go('/leaderboard')} />
+            </>
+          ) : null}
+          <Heading>App</Heading>
+          {accounts.jellyfin?.connected ? <Item icon="server-outline" title="Servers" onPress={() => go('/settings/servers')} /> : null}
+          <Item icon="settings-outline" title="Settings" onPress={() => go('/settings')} />
           {playlists.length ? (
             <>
               <Heading>Playlists</Heading>
@@ -213,9 +195,39 @@ export function SidePanel() {
               ))}
             </>
           ) : null}
-          <View style={{ height: 1, backgroundColor: c.line, marginVertical: 12, marginHorizontal: ui.pad }} />
-          <Item icon="settings-outline" title="Settings" onPress={() => go('/settings')} />
         </ScrollView>
+        {/* your account, pinned at the bottom: tap for your profile, tap the status for the status picker */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 10, marginTop: 4, marginBottom: insets.bottom + 10, padding: 8, borderRadius: 12, backgroundColor: fruit ? 'rgba(255,255,255,0.07)' : c.bg3 }}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Your profile"
+            onPress={() => go('/settings/account')}
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 }}
+          >
+            {st.loggedIn && st.profile ? <AccountAvatar profile={st.profile} size={40} status={shownMine(myStatus)} ring={fruit ? '#1a1a1a' : c.bg3} /> : <Image source={logo} style={{ width: 40, height: 40 }} />}
+            <View style={{ flex: 1 }}>
+              <Txt size={15} weight="700" lines={1}>
+                {st.loggedIn ? shownName(st.profile) : 'Account'}
+              </Txt>
+              <Txt tone="text2" size={12} lines={1}>
+                {st.loggedIn ? (st.profile?.handle ? `@${st.profile.handle}` : 'View profile') : 'Not logged in'}
+              </Txt>
+            </View>
+          </Pressable>
+          {st.loggedIn && myStatus ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Status: ${STATUS_LABEL[myStatus]}. Change`}
+              onPress={openStatusPicker}
+              style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 999, backgroundColor: pressed ? c.bg4 : 'rgba(255,255,255,0.06)' })}
+            >
+              <StatusDot status={shownMine(myStatus)!} size={10} ring="transparent" />
+              <Txt size={12} weight="600">
+                {STATUS_LABEL[myStatus]}
+              </Txt>
+            </Pressable>
+          ) : null}
+        </View>
       </Animated.View>
     </View>
   )

@@ -74,7 +74,7 @@ export default function EditProfileScreen() {
   const input = { color: c.text, backgroundColor: c.bg4, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 11, fontSize: 16 }
 
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <View style={{ flex: 1, backgroundColor: c.page }}>
       <Header title={pick ? 'Pick your username' : 'Edit profile'} />
       <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ paddingBottom: 160 }} keyboardShouldPersistTaps="handled">

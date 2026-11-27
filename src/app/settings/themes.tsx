@@ -10,7 +10,7 @@ export default function Themes() {
   const c = useColors()
   const s = useSettings()
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <View style={{ flex: 1, backgroundColor: c.page }}>
       <Header title="Themes" />
       <ScrollView contentContainerStyle={{ padding: ui.pad, paddingBottom: 160, gap: 18 }}>
         <View>

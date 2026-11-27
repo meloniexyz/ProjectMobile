@@ -153,7 +153,7 @@ export default function Servers() {
   // opened by the "link a server" prompt (no Jellyfin server linked to the account yet)
   const prompt = useLocalSearchParams<{ link?: string }>().link === '1' && !servers.length
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <View style={{ flex: 1, backgroundColor: c.page }}>
       <Header title={prompt ? 'Link a Jellyfin server' : 'Servers'} />
       <ScrollView contentContainerStyle={{ paddingBottom: 160 }} keyboardShouldPersistTaps="handled">
         {prompt ? (

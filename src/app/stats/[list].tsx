@@ -20,7 +20,7 @@ export default function StatsListScreen() {
   const items = data ? ranked(data[p.list], metric) : []
   const when = tf.label ?? (tf.period === 'all' ? 'All time' : rangeLabel(tf))
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <View style={{ flex: 1, backgroundColor: c.page }}>
       <Header title={`${TITLES[p.list]} · ${when}`} />
       {loading ? (
         <Spinner />

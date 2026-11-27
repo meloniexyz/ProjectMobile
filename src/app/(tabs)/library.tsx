@@ -48,7 +48,7 @@ export default function Library() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg, paddingTop: insets.top + 8 }}>
+    <View style={{ flex: 1, backgroundColor: c.page, paddingTop: insets.top + 8 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: ui.pad }}>
         <Txt size={ui.font.title} weight="800" style={{ flex: 1 }}>
           Your Library

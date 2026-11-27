@@ -78,7 +78,7 @@ export default function ImportHistory() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <View style={{ flex: 1, backgroundColor: c.page }}>
       <Header title="Import listening history" />
       <ScrollView contentContainerStyle={{ padding: ui.pad, gap: 14, paddingBottom: 160 }}>
         <Txt tone="text2">Bring your listening from Spotify and YouTube Music into Negusify: History, Stats and the leaderboards count it.</Txt>

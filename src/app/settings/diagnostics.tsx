@@ -381,7 +381,7 @@ export default function Diagnostics() {
 
   const passed = results.filter((r) => r.ok).length
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <View style={{ flex: 1, backgroundColor: c.page }}>
       <Header title="Diagnostics" right={<Button small title={running ? 'Running…' : 'Run'} busy={running} onPress={start} />} />
       <ScrollView contentContainerStyle={{ padding: ui.pad, gap: 10, paddingBottom: 160 }}>
         <Txt tone="text2" size={13}>

@@ -16,14 +16,14 @@ export default function PlaylistScreen() {
   const [editing, setEditing] = useState(false)
   if (!playlist) {
     return (
-      <View style={{ flex: 1, backgroundColor: c.bg }}>
+      <View style={{ flex: 1, backgroundColor: c.page }}>
         <Header title="Playlist" />
         <Empty title="This playlist was deleted" />
       </View>
     )
   }
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <View style={{ flex: 1, backgroundColor: c.page }}>
       <Header
         title={playlist.name}
         right={<IconButton name="create-outline" label="Edit details" onPress={() => setEditing(true)} />}

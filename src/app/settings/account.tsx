@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Alert, KeyboardAvoidingView, ScrollView, TextInput, View } from 'react-native'
 import { Button, Chip, Header, Txt } from '../../components/ui'
 import { HandleInput, maskEmail, ProfileCard } from '../../components/Profile'
+import { ProfileBackdrop } from '../../components/FruitBackdrop'
 import type { AccountDevice, SocialSettings } from '../../core/account'
 import { useStore } from '../../core/store'
 import {
@@ -43,7 +44,9 @@ export default function AccountScreen() {
   const showForm = !st.loggedIn || (mode !== null && mode !== 'login' && mode !== 'signup')
 
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <View style={{ flex: 1, backgroundColor: c.page }}>
+      {/* FruitGlass: your profile glows from your banner instead of the song */}
+      {st.loggedIn && st.profile && showForm === false ? <ProfileBackdrop profile={st.profile} /> : null}
       <Header title="Negusify account" />
       <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ paddingBottom: 160 }} keyboardShouldPersistTaps="handled">

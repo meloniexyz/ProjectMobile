@@ -3,6 +3,7 @@ import { Tabs, type BottomTabBarProps } from 'expo-router/js-tabs'
 import { NativeTabs } from 'expo-router/unstable-native-tabs'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { MiniPlayer } from '../../components/MiniPlayer'
+import { Frosted } from '../../components/FruitBackdrop'
 import { usePlayer } from '../../lib/player'
 import { useSettings } from '../../lib/settings'
 import { fontFor, useColors } from '../../lib/theme'
@@ -17,7 +18,8 @@ const TABS: Record<string, { label: string; icon: keyof typeof Ionicons.glyphMap
 function TabBar({ state, navigation, insets }: BottomTabBarProps) {
   const c = useColors()
   return (
-    <View style={{ backgroundColor: c.bg, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line, paddingBottom: insets.bottom }}>
+    // FruitGlass: frosted glass over the cover backdrop, like the Windows app's player bar
+    <Frosted solid={c.bg} tint={0.05} style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line, paddingBottom: insets.bottom }}>
       <View style={{ paddingTop: 6 }}>
         <MiniPlayer />
       </View>
@@ -45,7 +47,7 @@ function TabBar({ state, navigation, insets }: BottomTabBarProps) {
           )
         })}
       </View>
-    </View>
+    </Frosted>
   )
 }
 
@@ -87,7 +89,7 @@ export default function TabsLayout() {
   const { uiStyle } = useSettings()
   if (uiStyle === 'glass') return <GlassTabs />
   return (
-    <Tabs tabBar={(p) => <TabBar {...p} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: c.bg } }}>
+    <Tabs tabBar={(p) => <TabBar {...p} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: c.page } }}>
       <Tabs.Screen name="index" />
       <Tabs.Screen name="search" />
       <Tabs.Screen name="library" />

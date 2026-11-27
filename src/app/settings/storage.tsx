@@ -21,7 +21,7 @@ export default function StorageSettings() {
   const playingUid = () => new Set([getPlayer().queue[getPlayer().index]?.track.uid].filter(Boolean) as string[])
 
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <View style={{ flex: 1, backgroundColor: c.page }}>
       <Header title="Downloads and storage" />
       <ScrollView contentContainerStyle={{ paddingBottom: 160 }}>
         <Row

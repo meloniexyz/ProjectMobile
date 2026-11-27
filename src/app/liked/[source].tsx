@@ -21,7 +21,7 @@ export default function Liked() {
     if (data) updateCollection(key, data)
   }, [data, key])
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <View style={{ flex: 1, backgroundColor: c.page }}>
       <Header title={`Liked Songs · ${SOURCES[source]?.name ?? ''}`} />
       <TrackList
         tracks={tracks}

@@ -23,7 +23,7 @@ export default function Downloads() {
   const stats = useMemo(() => storageStats(), [version])
   const list = show === 'done' ? done : waiting
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <View style={{ flex: 1, backgroundColor: c.page }}>
       <Header title="Downloads" />
       <TrackList
         tracks={list}

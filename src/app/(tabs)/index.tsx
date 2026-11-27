@@ -168,7 +168,7 @@ export default function Home() {
   const hasPlaylists = playlists.length > 0 || connected.some((s) => (remoteCounts[s] ?? 0) > 0)
 
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <View style={{ flex: 1, backgroundColor: c.page }}>
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: 160 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: ui.pad, gap: 10 }}>
         <Pressable accessibilityRole="button" accessibilityLabel="Open side panel" testID="open-side-panel" hitSlop={8} onPress={openSidePanel}>

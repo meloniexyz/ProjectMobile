@@ -254,7 +254,7 @@ export function Header({ title, right, back = true }: { title?: string; right?: 
   const insets = useSafeAreaInsets()
   const real = useGlass()
   return (
-    <View style={{ paddingTop: insets.top + 4, paddingHorizontal: real ? 12 : 8, paddingBottom: 6, flexDirection: 'row', alignItems: 'center', backgroundColor: c.bg }}>
+    <View style={{ paddingTop: insets.top + 4, paddingHorizontal: real ? 12 : 8, paddingBottom: 6, flexDirection: 'row', alignItems: 'center', backgroundColor: c.page }}>
       {back ? <IconButton name="chevron-back" size={real ? 22 : 26} label="Back" onPress={goBack} glass /> : <View style={{ width: 8 }} />}
       <Txt size={17} weight="700" lines={1} style={{ flex: 1, marginLeft: real ? 10 : 4 }}>
         {title ?? ''}

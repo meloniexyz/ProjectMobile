@@ -96,7 +96,7 @@ export default function QualitySettings() {
   const s = useSettings()
   const full = s.mode === 'full'
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <View style={{ flex: 1, backgroundColor: c.page }}>
       <Header title="Audio quality" />
       <ScrollView contentContainerStyle={{ paddingBottom: 160 }}>
         <Txt tone="text2" size={13} style={{ paddingHorizontal: ui.pad }}>

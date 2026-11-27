@@ -75,7 +75,7 @@ export default function Search() {
   const several = types.length > 1 || music.length > 1
 
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg, paddingTop: insets.top + 8 }}>
+    <View style={{ flex: 1, backgroundColor: c.page, paddingTop: insets.top + 8 }}>
       <Txt size={ui.font.title} weight="800" style={{ paddingHorizontal: ui.pad, marginBottom: 10 }}>
         Search
       </Txt>

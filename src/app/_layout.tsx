@@ -132,7 +132,7 @@ export default function RootLayout() {
       <ThemeProvider value={navTheme}>
         <View style={{ flex: 1, backgroundColor: c.bg }}>
           <Stack
-            screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }}
+            screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.page } }}
             screenLayout={({ children, route }) => <PageWithPlayingBar route={route.name}>{children}</PageWithPlayingBar>}
           >
             <Stack.Screen name="(tabs)" />

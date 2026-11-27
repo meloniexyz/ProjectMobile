@@ -86,7 +86,7 @@ export default function Equalizer() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <View style={{ flex: 1, backgroundColor: c.page }}>
       <Header title="Equalizer" />
       <ScrollView contentContainerStyle={{ paddingBottom: 160 }} scrollEnabled={!dragging}>
         <Row

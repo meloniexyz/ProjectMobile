@@ -76,7 +76,7 @@ export default function MessagesScreen() {
   )
 
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <View style={{ flex: 1, backgroundColor: c.page }}>
       <Header title="Messages" />
       {!loggedIn ? (
         <Empty icon="chatbubbles-outline" title="Messages" text="Log in to your Negusify account (Settings → Account) to message your friends." />

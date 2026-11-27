@@ -98,7 +98,7 @@ export default function ChatScreen() {
   }
 
   return (
-    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: c.bg }}>
+    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: c.page }}>
       <Header
         title={`@${handle}`}
         right={
@@ -156,7 +156,7 @@ export default function ChatScreen() {
         })}
       </ScrollView>
       {isFriend ? (
-        <View style={{ paddingHorizontal: ui.pad, paddingTop: 8, paddingBottom: insets.bottom + 8, gap: 8, borderTopWidth: 1, borderTopColor: c.line, backgroundColor: c.bg }}>
+        <View style={{ paddingHorizontal: ui.pad, paddingTop: 8, paddingBottom: insets.bottom + 8, gap: 8, borderTopWidth: 1, borderTopColor: c.line, backgroundColor: c.page }}>
           {pending ? <SongCard song={pending} onRemove={() => chatStore.set({ pending: null })} /> : null}
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}>
             <TextInput

@@ -72,7 +72,7 @@ export default function EntityScreen() {
   const sameCover = e.kind === 'album' && tracks.length > 0 && tracks.every((t) => t.artwork === tracks[0].artwork)
   const kindName = e.kind === 'artist' ? 'artist' : e.kind === 'playlist' ? 'playlist' : e.kind === 'album' ? 'album' : e.source === 'youtube' ? 'channel' : 'profile'
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <View style={{ flex: 1, backgroundColor: c.page }}>
       <Header title={e.name} />
       <TrackList
         tracks={tracks}

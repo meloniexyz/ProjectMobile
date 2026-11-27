@@ -302,7 +302,7 @@ export default function LeaderboardScreen() {
   const max = (by === 'plays' ? board?.people[0]?.plays : board?.people[0]?.seconds) || 1
   const meListed = board?.people.some((p) => p.me)
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <View style={{ flex: 1, backgroundColor: c.page }}>
       <Header title="Leaderboards" />
       {!loggedIn ? (
         <Empty icon="trophy-outline" title="Leaderboards" text="Log in to your Negusify account (Settings → Account) to see who listens the most." />

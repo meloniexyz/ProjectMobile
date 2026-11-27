@@ -54,7 +54,7 @@ export default function History() {
   }, [entries])
 
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <View style={{ flex: 1, backgroundColor: c.page }}>
       <Header
         title="Listening history"
         right={

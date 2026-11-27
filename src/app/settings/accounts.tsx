@@ -204,7 +204,7 @@ function SpotifyCard() {
 export default function Accounts() {
   const c = useColors()
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <View style={{ flex: 1, backgroundColor: c.page }}>
       <Header title="Accounts" />
       <ScrollView contentContainerStyle={{ paddingBottom: 160 }}>
         <SpotifyCard />

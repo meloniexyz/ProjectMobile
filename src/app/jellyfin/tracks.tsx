@@ -9,7 +9,7 @@ export default function ServerTracks() {
   const c = useColors()
   const lib = useServerLibrary('tracks')
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <View style={{ flex: 1, backgroundColor: c.page }}>
       <Header title="Tracks" />
       <TrackList
         tracks={lib.items}

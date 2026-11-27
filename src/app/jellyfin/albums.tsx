@@ -20,7 +20,7 @@ export function ServerGrid({ kind }: { kind: 'albums' | 'artists' }) {
   const gap = 14
   const size = Math.floor((width - ui.pad * 2 - gap) / 2)
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <View style={{ flex: 1, backgroundColor: c.page }}>
       <Header title={kind === 'albums' ? 'Albums' : 'Artists'} />
       <View style={{ marginHorizontal: ui.pad, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.bg3, borderRadius: 8, paddingHorizontal: 12 }}>
         <Icon name="search" size={18} color={c.text2} />

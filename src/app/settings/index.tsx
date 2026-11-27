@@ -40,7 +40,7 @@ export default function Settings() {
     return a?.connected ? `Connected${a.userName ? ` as ${a.userName}` : ''}` : 'Not connected'
   }
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <View style={{ flex: 1, backgroundColor: c.page }}>
       <Header title="Settings" />
       <ScrollView contentContainerStyle={{ paddingBottom: 160 }}>
         <Group title="Mode" />

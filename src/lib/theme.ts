@@ -11,6 +11,8 @@ export interface Colors extends Theme {
   accentInk: string
   /** accent at low opacity, for highlights */
   accentSoft: string
+  /** a page's own background: see-through in FruitGlass (its backdrop shows), else `bg` */
+  page: string
 }
 
 const hexToRgb = (hex: string) => {
@@ -37,7 +39,11 @@ export const alpha = (hex: string, a: number) => {
 export function colorsFor(themeId: string, accentOverride: string | null): Colors {
   const t = themeById(themeId)
   const accent = accentOverride || t.accent
-  return { ...t, accent, accentInk: inkFor(accent), accentSoft: alpha(accent, 0.16) }
+  const base = { ...t, accent, accentInk: inkFor(accent), accentSoft: alpha(accent, 0.16), page: t.bg }
+  // FruitGlass: pages are see-through over the cover backdrop, and cards, chips and fields are glass
+  // (white at low opacity, like the Windows app). Panels that slide over content (bg2, elev) stay solid.
+  if (t.skin === 'fruitglass') return { ...base, page: 'transparent', bg3: 'rgba(255,255,255,0.06)', bg4: 'rgba(255,255,255,0.10)', hover: 'rgba(255,255,255,0.05)', line: 'rgba(255,255,255,0.08)' }
+  return base
 }
 
 export function useColors(): Colors {
