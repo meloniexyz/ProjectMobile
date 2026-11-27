@@ -1,4 +1,5 @@
 import { BlurView } from 'expo-blur'
+import { TabBackdrop } from '../../components/FruitBackdrop'
 import { router } from 'expo-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Pressable, ScrollView, View } from 'react-native'
@@ -169,6 +170,8 @@ export default function Home() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.page }}>
+      {/* FruitGlass: this tab's cover backdrop (drawn here so it also shows with iOS's own Liquid Glass tabs) */}
+      <TabBackdrop route="index" />
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: 160 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: ui.pad, gap: 10 }}>
         <Pressable accessibilityRole="button" accessibilityLabel="Open side panel" testID="open-side-panel" hitSlop={8} onPress={openSidePanel}>

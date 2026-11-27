@@ -1,4 +1,5 @@
 import { router } from 'expo-router'
+import { TabBackdrop } from '../../components/FruitBackdrop'
 import { useState } from 'react'
 import { Alert, Platform, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -49,6 +50,8 @@ export default function Library() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.page, paddingTop: insets.top + 8 }}>
+      {/* FruitGlass: this tab's cover backdrop (drawn here so it also shows with iOS's own Liquid Glass tabs) */}
+      <TabBackdrop route="library" />
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: ui.pad }}>
         <Txt size={ui.font.title} weight="800" style={{ flex: 1 }}>
           Your Library

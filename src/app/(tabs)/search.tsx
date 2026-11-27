@@ -1,4 +1,5 @@
 import { useLocalSearchParams } from 'expo-router'
+import { TabBackdrop } from '../../components/FruitBackdrop'
 import { useEffect, useMemo, useState } from 'react'
 import { ScrollView, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -76,6 +77,8 @@ export default function Search() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.page, paddingTop: insets.top + 8 }}>
+      {/* FruitGlass: this tab's cover backdrop (drawn here so it also shows with iOS's own Liquid Glass tabs) */}
+      <TabBackdrop route="search" />
       <Txt size={ui.font.title} weight="800" style={{ paddingHorizontal: ui.pad, marginBottom: 10 }}>
         Search
       </Txt>

@@ -4,12 +4,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { usePlayer } from '../lib/player'
 import { useSettings } from '../lib/settings'
 import { MiniPlayer } from './MiniPlayer'
-import { FruitBackdrop } from './FruitBackdrop'
+import { FruitBackdrop, spreadFor } from './FruitBackdrop'
 
 /** Screens that have their own playing bar (tabs) or are the player itself. */
 const OWN_BAR = new Set(['(tabs)', 'player', 'queue', 'spotify-login'])
 /** Full-screen windows with their own background (the player and lyrics show the cover their own way). */
-const OWN_BACKDROP = new Set(['player', 'lyrics', 'queue', 'spotify-login', 'mode'])
+const OWN_BACKDROP = new Set(['(tabs)', 'player', 'lyrics', 'queue', 'spotify-login', 'mode'])
 
 /**
  * Wraps every page (playlists, settings, profiles...) with its own playing bar at the bottom, like
@@ -19,8 +19,8 @@ const OWN_BACKDROP = new Set(['player', 'lyrics', 'queue', 'spotify-login', 'mod
 export function PageWithPlayingBar({ route, children }: { route: string; children: ReactNode }) {
   return (
     <View style={{ flex: 1 }}>
-      {/* FruitGlass: the cover backdrop behind the page (the full-screen windows draw their own) */}
-      {OWN_BACKDROP.has(route.split('/')[0]!) ? null : <FruitBackdrop />}
+      {/* FruitGlass: the cover backdrop behind the page (the full-screen windows and the tabs draw their own) */}
+      {OWN_BACKDROP.has(route.split('/')[0]!) ? null : <FruitBackdrop spread={spreadFor(route)} />}
       {children}
       {OWN_BAR.has(route.split('/')[0]!) ? null : <PageBar />}
     </View>
