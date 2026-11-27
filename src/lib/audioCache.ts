@@ -1,4 +1,4 @@
-import { File } from 'expo-file-system'
+import { Directory, File, Paths } from 'expo-file-system'
 import type { SourceId } from '../core/types'
 import { createStore } from '../core/store'
 import { atLeast, type AnyQuality } from './settings'
@@ -72,26 +72,10 @@ export function setGain(uid: string, gainDb: number) {
 
 // ---------- downloading ----------
 
-/**
- * Downloads a URL into a file using fetch() instead of File.downloadFileAsync.
- * iOS's native NSURLSession (used by downloadFileAsync) sends its own User-Agent
- * which YouTube and SoundCloud reject with 403. fetch() uses the JS networking
- * stack which these services accept.
- */
-async function fetchToFile(url: string, dest: File) {
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`download failed (${res.status})`)
-  const buf = await res.arrayBuffer()
-  if (dest.exists) dest.delete()
-  dest.create()
-  dest.write(new Uint8Array(buf))
-  return buf.byteLength
-}
-
 /** Downloads one song's audio into `dest` (one file, or HLS segments joined). */
 async function fetchInto(plan: StreamPlan, dest: File) {
   if (plan.kind === 'file') {
-    await fetchToFile(plan.url, dest)
+    await File.downloadFileAsync(plan.url, dest, { idempotent: true })
   } else {
     const res = await fetch(plan.url)
     if (!res.ok) throw new Error(`stream list failed (${res.status})`)
@@ -102,21 +86,29 @@ async function fetchInto(plan: StreamPlan, dest: File) {
     for (const line of text.split(/\r?\n/)) if (line && !line.startsWith('#')) uris.push(line.trim())
     if (!uris.length) throw new Error('empty stream')
     const abs = uris.map((u) => new URL(u, plan.url).toString())
-    // download segments in parallel, then join them
-    if (dest.exists) dest.delete()
-    dest.create()
-    let next = 0
-    const buffers: Uint8Array[] = new Array(abs.length)
-    const worker = async () => {
-      while (next < abs.length) {
-        const i = next++
-        const r = await fetch(abs[i])
-        if (!r.ok) throw new Error(`segment ${i} failed (${r.status})`)
-        buffers[i] = new Uint8Array(await r.arrayBuffer())
+    const parts = new Directory(Paths.cache, `parts-${Date.now().toString(36)}`)
+    parts.create({ intermediates: true, idempotent: true })
+    try {
+      // a few segments at a time
+      const files: File[] = new Array(abs.length)
+      let next = 0
+      const worker = async () => {
+        while (next < abs.length) {
+          const i = next++
+          files[i] = await File.downloadFileAsync(abs[i], new File(parts, `${String(i).padStart(4, '0')}`), { idempotent: true })
+        }
+      }
+      await Promise.all([worker(), worker(), worker(), worker()])
+      if (dest.exists) dest.delete()
+      dest.create()
+      for (const f of files) dest.write(await f.bytes(), { append: true })
+    } finally {
+      try {
+        parts.delete()
+      } catch {
+        // leftovers get cleared with the cache
       }
     }
-    await Promise.all([worker(), worker(), worker(), worker()])
-    for (const buf of buffers) dest.write(buf, { append: true })
   }
   const size = dest.size ?? 0
   if (size < 16_000) {
